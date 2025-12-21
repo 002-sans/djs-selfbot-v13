@@ -801,12 +801,44 @@ class RichPresence extends Activity {
   }
 
   /**
+   * Set the URL of the state of the activity
+   * @param {?string} url The url of the state
+   * @returns {RichPresence}
+   */
+  setStateURL(url){
+    if (!url)
+      throw new Error('Detail URL must be a url');
+
+    if (typeof url !== 'string') throw new Error('Detail URL must be a url');
+    if (!URL.canParse(url)) throw new Error('Detail URL must be a valid url');
+  
+    this.state_url  = url;
+    return this;
+  }
+
+  /**
    * Set the details of the activity
    * @param {?string} details The details of the activity
    * @returns {RichPresence}
    */
   setDetails(details) {
     this.details = details;
+    return this;
+  }
+
+  /**
+   * Set the URL of the details of the activity
+   * @param {?string} url The url of the details
+   * @returns {RichPresence}
+   */
+  setDetailsURL(url){
+    if (!url)
+      throw new Error('Detail URL must be a url');
+
+    if (typeof url !== 'string') throw new Error('Detail URL must be a url');
+    if (!URL.canParse(url)) throw new Error('Detail URL must be a valid url');
+  
+    this.details_url = url;
     return this;
   }
 

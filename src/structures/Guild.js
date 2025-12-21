@@ -136,6 +136,11 @@ class Guild extends AnonymousGuild {
       if (!data.channels) this.available = false;
     }
 
+    if (data.profile)
+      this.profile = data.profile
+    else 
+      this.profile = { badge: null, tag: null }
+
     /**
      * The id of the shard this Guild belongs to.
      * @type {number}
@@ -1598,6 +1603,60 @@ class Guild extends AnonymousGuild {
         },
       };
     };
+  }
+
+  /**
+   * Mute this guild
+   * @param {GuildMuteOptions} [options] Options for muting the guild
+   * @returns {Promise<Object>} The updated guild settings
+   * @example
+   * // Mute the guild with default settings
+   * guild.mute();
+   * @example
+   * // Mute the guild with custom options
+   * guild.mute({
+   *   muted: true,
+   *   suppressRoles: false,
+   *   suppressEveryone: true,
+   *   muteScheduledEvents: false
+   * });
+   */
+  async mute(options = {}) {
+    const {
+      muted = true,
+      suppressRoles = true,
+      suppressEveryone = true,
+      muteScheduledEvents = true
+    } = options;
+
+    const data = await this.client.api.users('@me').guilds(this.id).settings.patch({
+      data: {
+        muted,
+        suppress_roles: suppressRoles,
+        suppress_everyone: suppressEveryone,
+        mute_scheduled_events: muteScheduledEvents
+      }
+    });
+    return data;
+  }
+
+  /**
+   * Unmute this guild
+   * @returns {Promise<Object>} The updated guild settings
+   * @example
+   * // Unmute the guild
+   * guild.unmute();
+   */
+  async unmute() {
+    const data = await this.client.api.users('@me').guilds(this.id).settings.patch({
+      data: {
+        muted: false,
+        suppress_roles: false,
+        suppress_everyone: false,
+        mute_scheduled_events: false
+      }
+    });
+    return data;
   }
 
   /**

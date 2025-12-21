@@ -216,7 +216,9 @@ export class RichPresence extends Activity {
   public setType(type?: ActivityType): this;
   public setApplicationId(id?: Snowflake): this;
   public setDetails(details?: string): this;
+  public setDetailsURL(url?: string): this;
   public setState(state?: string): this;
+  public setStateURL(url?: string): this;
   public setParty(party?: { max: number; current: number; id?: string }): this;
   public setStartTimestamp(timestamp: Date | number | null): this;
   public setEndTimestamp(timestamp: Date | number | null): this;
@@ -860,6 +862,7 @@ export class Client<Ready extends boolean = boolean> extends BaseClient {
   public sessions: SessionManager;
   public presences: PresenceManager;
   public billing: BillingManager;
+  public quests: QuestManager;
   public settings: ClientUserSettingManager;
   public readonly sessionId: If<Ready, string, undefined>;
   public destroy(): void;
@@ -980,7 +983,13 @@ export class ClientUser extends User {
   public stopRinging(channel: ChannelResolvable): Promise<void>;
   public fetchBurstCredit(): Promise<number>;
   public setPronouns(pronouns?: string | null): Promise<this>;
+  public setClan(guild?: GuildIDResolve): Promise<this>;
+  public deleteClan(): Promise<this>;
   public setGlobalName(globalName?: string | null): Promise<this>;
+  public addWidget(type: WidgetType, gameId: string, comment?: string | null, tags?: string[]): Promise<any>;
+  public delWidget(type: WidgetType, gameId?: string): Promise<any>;
+  public widgetsList(): Promise<WidgetsResponse>;
+  public setNameStyle(fontName: FontName | number, effectName: EffectName | number, color1: number | string, color2?: number | string | null): Promise<this>;
 }
 
 export class Options extends null {
@@ -1662,6 +1671,8 @@ export class Guild extends AnonymousGuild {
   ): Promise<this>;
   public topEmojis(): Promise<Collection<number, GuildEmoji>>;
   public setVanityCode(code?: string): Promise<this>;
+  public mute(options?: GuildMuteOptions): Promise<any>;
+  public unmute(): Promise<any>;
 }
 
 export class GuildAuditLogs<T extends GuildAuditLogsResolvable = 'ALL'> {
@@ -2635,6 +2646,29 @@ export class BillingManager extends BaseManager {
   public fetchGuildBoosts(): Promise<Collection<Snowflake, GuildBoost>>;
   public currentSubscription: Collection<Snowflake, object>;
   public fetchCurrentSubscription(): Promise<Collection<Snowflake, object>>;
+}
+
+export class QuestManager extends BaseManager {
+  constructor(client: Client);
+  public cache: Collection<string, Quest>;
+  public get(): Promise<QuestData>;
+  public orbs(): Promise<OrbsData>;
+  public getQuest(id: string): Quest | undefined;
+  public list(): Quest[];
+  public getExpired(date?: Date): Quest[];
+  public getCompleted(): Quest[];
+  public getClaimable(): Quest[];
+  public filterQuestsValid(): Quest[];
+  public hasQuest(id: string): boolean;
+  public getApplicationData(ids: string[]): Promise<ApplicationData[]>;
+  public acceptQuest(questId: string, options?: QuestEnrollOptions): Promise<Quest | undefined>;
+  public videoProgress(questId: string, timestamp: number): Promise<any>;
+  public heartbeat(questId: string, applicationId: string, terminal?: boolean): Promise<any>;
+  public doingQuest(quest: Quest): Promise<void>;
+  public autoCompleteAll(): Promise<void>;
+  public readonly size: number;
+  public clear(): void;
+  public [Symbol.iterator](): IterableIterator<Quest>;
 }
 
 export class Session extends Base {
@@ -3737,6 +3771,117 @@ export interface NameplateData {
 
 export interface Collectibles {
   nameplate: NameplateData | null;
+}
+
+export type WidgetType = 'favorite_games' | 'current_games' | 'played_games' | 'want_to_play_games';
+
+export interface WidgetGameData {
+  game_id: string;
+  comment?: string | null;
+  tags?: string[];
+}
+
+export interface WidgetData {
+  id: string;
+  data: {
+    type: WidgetType;
+    games: WidgetGameData[];
+  };
+}
+
+export interface WidgetsResponse {
+  widgets: WidgetData[];
+}
+
+export interface QuestEnrollOptions {
+  location?: number;
+  isTargeted?: boolean;
+  metadataRaw?: any;
+}
+
+export interface QuestTaskConfig {
+  tasks?: {
+    WATCH_VIDEO?: { target: number };
+    WATCH_VIDEO_ON_MOBILE?: { target: number };
+    PLAY_ON_DESKTOP?: { target: number };
+    STREAM_ON_DESKTOP?: { target: number };
+    PLAY_ACTIVITY?: { target: number };
+  };
+}
+
+export interface QuestUserStatus {
+  enrolled_at?: string;
+  completed_at?: string;
+  claimed_at?: string;
+  progress?: {
+    WATCH_VIDEO?: { value: number };
+    WATCH_VIDEO_ON_MOBILE?: { value: number };
+    PLAY_ON_DESKTOP?: { value: number };
+    STREAM_ON_DESKTOP?: { value: number };
+    PLAY_ACTIVITY?: { value: number };
+  };
+}
+
+export interface QuestConfig {
+  expires_at?: string;
+  messages?: {
+    quest_name?: string;
+  };
+  application?: {
+    id: string;
+    name: string;
+  };
+  task_config: QuestTaskConfig;
+  task_config_v2?: QuestTaskConfig;
+}
+
+export interface QuestRawData {
+  id: string;
+  config: QuestConfig;
+  user_status?: QuestUserStatus;
+}
+
+export class Quest {
+  constructor(data: QuestRawData);
+  public id: string;
+  public config: QuestConfig;
+  public userStatus?: QuestUserStatus;
+  public isExpired(date?: Date): boolean;
+  public isCompleted(): boolean;
+  public hasClaimedRewards(): boolean;
+  public isEnrolledQuest(): boolean;
+  public updateUserStatus(status: Partial<QuestUserStatus>): void;
+}
+
+export interface QuestData {
+  quests?: QuestRawData[];
+}
+
+export interface OrbsData {
+  balance?: number;
+}
+
+export interface ApplicationData {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  executables: {
+    os: string;
+    name: string;
+    is_launcher: boolean;
+  }[];
+}
+
+export type FontName = 'Sans' | 'Tempo' | 'Sakura' | 'JellyBean' | 'Modern' | 'Medieval' | '8Bit' | 'Vampire';
+
+export type EffectName = 'Solid' | 'Gradient' | 'Neon' | 'Toon' | 'Pop';
+
+export interface GuildMuteOptions {
+  muted?: boolean;
+  suppressRoles?: boolean;
+  suppressEveryone?: boolean;
+  muteScheduledEvents?: boolean;
 }
 
 export class User extends PartialTextBasedChannel(Base) {

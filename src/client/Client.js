@@ -17,6 +17,7 @@ const ChannelManager = require('../managers/ChannelManager');
 const ClientUserSettingManager = require('../managers/ClientUserSettingManager');
 const GuildManager = require('../managers/GuildManager');
 const PresenceManager = require('../managers/PresenceManager');
+const QuestManager = require('../managers/QuestManager');
 const RelationshipManager = require('../managers/RelationshipManager');
 const SessionManager = require('../managers/SessionManager');
 const UserManager = require('../managers/UserManager');
@@ -157,6 +158,12 @@ class Client extends BaseClient {
      * @type {BillingManager}
      */
     this.billing = new BillingManager(this);
+
+    /**
+     * Manages quest-related API methods
+     * @type {QuestManager}
+     */
+    this.quests = new QuestManager(this);
 
     /**
      * All of the sessions of the client

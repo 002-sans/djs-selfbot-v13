@@ -7,6 +7,7 @@ const User = require('./User');
 const DataResolver = require('../util/DataResolver');
 const PremiumUsageFlags = require('../util/PremiumUsageFlags');
 const PurchasedFlags = require('../util/PurchasedFlags');
+const { Error, TypeError } = require('../errors');
 const Util = require('../util/Util');
 
 /**
@@ -443,6 +444,209 @@ class ClientUser extends User {
    */
   setPronouns(pronouns = '') {
     return this.edit({ pronouns });
+  }
+
+  /**
+   * Add a widget to the user's profile
+   * @param {string} type Widget type (favorite_games, current_games, played_games, want_to_play_games)
+   * @param {string} gameId The game ID to add
+   * @param {string} [comment] Optional comment for the game
+   * @param {string[]} [tags] Optional tags for the game
+   * @returns {Promise<Object>}
+   */
+  async addWidget(type, gameId, comment = null, tags = []) {
+    if (!type || !gameId) {
+      throw new TypeError('Widget type and game ID are required');
+    }
+
+    const validTypes = ['favorite_games', 'current_games', 'played_games', 'want_to_play_games'];
+    if (!validTypes.includes(type)) {
+      throw new TypeError(`Invalid widget type. Must be one of: ${validTypes.join(', ')}`);
+    }
+
+    // Get current widgets first
+    const currentWidgets = await this.widgetsList();
+    
+    // Find existing widget of this type or create new one
+    let targetWidget = currentWidgets.widgets.find(w => w.data.type === type);
+    
+    if (!targetWidget) {
+      // Create new widget if it doesn't exist
+      targetWidget = {
+        id: Date.now().toString(), // Generate temporary ID
+        data: {
+          type: type,
+          games: []
+        }
+      };
+      currentWidgets.widgets.push(targetWidget);
+    }
+
+    // Add the game if it doesn't already exist
+    const existingGame = targetWidget.data.games.find(g => g.game_id === gameId);
+    if (!existingGame) {
+      const gameData = { game_id: gameId };
+      if (comment !== null) gameData.comment = comment;
+      if (tags.length > 0) gameData.tags = tags;
+      
+      targetWidget.data.games.push(gameData);
+    }
+
+    // Update widgets via API
+    return this.client.api.users['@me'].profile.patch({
+      data: { widgets: currentWidgets.widgets }
+    });
+  }
+
+  /**
+   * Delete a widget or remove a game from a widget
+   * @param {string} type Widget type to modify
+   * @param {string} [gameId] Optional game ID to remove (if not provided, removes entire widget)
+   * @returns {Promise<Object>}
+   */
+  async delWidget(type, gameId = null) {
+    if (!type) {
+      throw new TypeError('Widget type is required');
+    }
+
+    const validTypes = ['favorite_games', 'current_games', 'played_games', 'want_to_play_games'];
+    if (!validTypes.includes(type)) {
+      throw new TypeError(`Invalid widget type. Must be one of: ${validTypes.join(', ')}`);
+    }
+
+    // Get current widgets
+    const currentWidgets = await this.widgetsList();
+    
+    if (gameId) {
+      // Remove specific game from widget
+      const targetWidget = currentWidgets.widgets.find(w => w.data.type === type);
+      if (targetWidget) {
+        targetWidget.data.games = targetWidget.data.games.filter(g => g.game_id !== gameId);
+      }
+    } else {
+      // Remove entire widget
+      currentWidgets.widgets = currentWidgets.widgets.filter(w => w.data.type !== type);
+    }
+
+    // Update widgets via API
+    return this.client.api.users['@me'].profile.patch({
+      data: { widgets: currentWidgets.widgets }
+    });
+  }
+
+  /**
+   * Get the list of all widgets for the user
+   * @returns {Promise<Object>} Object containing widgets array
+   */
+  async widgetsList() {
+    try {
+      const data = await this.client.api.users['@me'].profile.get();
+      return data.widgets ? { widgets: data.widgets } : { widgets: [] };
+    } catch (error) {
+      // If profile endpoint doesn't exist or fails, return empty widgets
+      return { widgets: [] };
+    }
+  }
+
+  /**
+   * Set display name style with font, effect, and colors
+   * @param {string|number} fontName Font name or ID
+   * @param {string|number} effectName Effect name or ID  
+   * @param {number|string} color1 Primary color (hex or decimal)
+   * @param {number|string} [color2] Secondary color for gradient effects (hex or decimal)
+   * @returns {Promise<ClientUser>}
+   * @example
+   * // Set Sans font with gradient effect
+   * client.user.setNameStyle('Sans', 'Gradient', 7183099, 6082490);
+   * // Set Tempo font with solid effect
+   * client.user.setNameStyle('Tempo', 'Solid', 7183099);
+   * // Using IDs directly
+   * client.user.setNameStyle(11, 2, 7183099, 6082490);
+   */
+  async setNameStyle(fontName, effectName, color1, color2 = null) {
+    // Font name/ID mapping
+    const fontMap = {
+      'Sans': 11,
+      'Tempo': 12,
+      'Sakura': 3,
+      'JellyBean': 4,
+      'Modern': 6,
+      'Medieval': 7,
+      '8Bit': 8,
+      'Vampire': 10
+    };
+
+    // Effect name/ID mapping
+    const effectMap = {
+      'Solid': 1,
+      'Gradient': 2,
+      'Neon': 3,
+      'Toon': 4,
+      'Pop': 5
+    };
+
+    // Resolve font ID
+    let fontId = typeof fontName === 'string' ? fontMap[fontName] : fontName;
+    if (!fontId) {
+      throw new TypeError(`Invalid font name. Must be one of: ${Object.keys(fontMap).join(', ')} or a valid font ID`);
+    }
+
+    // Resolve effect ID
+    let effectId = typeof effectName === 'string' ? effectMap[effectName] : effectName;
+    if (!effectId) {
+      throw new TypeError(`Invalid effect name. Must be one of: ${Object.keys(effectMap).join(', ')} or a valid effect ID`);
+    }
+
+    // Resolve colors
+    const resolveColor = (color) => {
+      if (typeof color === 'string') {
+        // Handle hex colors
+        if (color.startsWith('#')) {
+          return parseInt(color.slice(1), 16);
+        }
+        return parseInt(color, 16);
+      }
+      return color;
+    };
+
+    const primaryColor = resolveColor(color1);
+    const colors = [primaryColor];
+    
+    if (color2 !== null) {
+      const secondaryColor = resolveColor(color2);
+      colors.push(secondaryColor);
+    }
+
+    // Build the data object
+    const data = {
+      display_name_font_id: fontId,
+      display_name_effect_id: effectId,
+      display_name_colors: colors
+    };
+
+    // Send PATCH request to Discord API
+    await this.client.api.users('@me').patch({ data });
+    return this;
+  }
+
+  /**
+   * Set the TAG of a guild.
+   * @param {GuildIDResolve} guild The guild with the tag
+   * @returns {Promise<ClientUser>}
+   */
+  setClan(guild) {
+    const id = this.guilds.resolveId(guild);
+    if (!id) throw new TypeError('INVALID_TYPE', 'guild', 'GuildResolvable');
+    
+    return this.client.api.users['@me'].clan.put({ data: { identity_guild_id: id, identity_enabled: true } });
+  }
+
+  /**
+   * Remove the TAG from your profile
+   * @returns {Promise<ClientUser>}
+   */
+  deleteClan() {
+    return this.client.api.users['@me'].clan.put({ data: { identity_guild_id: null, identity_enabled: false } });
   }
 }
 

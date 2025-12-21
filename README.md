@@ -1,9 +1,5 @@
 > [!IMPORTANT]
-> ## Project Archival
-> 
-> **This project is no longer actively maintained and this repository has been archived.**
->
-> You can read the full announcement [here](https://github.com/aiko-chan-ai/discord.js-selfbot-v13/discussions/1743)
+> **This project is a fork of the [discord.js-selfbot-v13](https://github.com/aiko-chan-ai/discord.js-selfbot-v13) archived project.**
 
 <div align="center">
   <br />
@@ -12,15 +8,37 @@
   </p>
 </div>
 
-> [!CAUTION]
-> **The use of this module under a different name on NPM (or another source besides this Github) is not associated with this library.**
-> **When using these libraries, you accept the risk of exposing your Discord Token.**
-
 ## About
 
 <strong>Welcome to `discord.js-selfbot-v13@v3.7`, based on `discord.js@13.17` and backport `discord.js@14.21.0`</strong>
 
 - discord.js-selfbot-v13 is a [Node.js](https://nodejs.org) module that allows user accounts to interact with the Discord API v9.
+
+## Nouveautés
+
+> **Nouvelles fonctionnalités ajoutées :**
+- `guild.mute()` - Supprime completement les pings
+- `guild.unmute()` - Remet les pings sur le serveur
+
+- `rpc.setDetailsURL(url)` - Met une URL pour les details du RPC
+- `rpc.setStateURL(url)` - Met une URL pour le state du RPC
+
+- `client.user.setNameStyle(fontName, effectName, color1, color2?)` - Définir le style du nom d'affichage avec police, effet et couleurs
+- `client.user.setClan(GuildID)` - Changer votre TAG de serveur
+- `client.user.deleteClan()` - Retire le TAG de serveur
+
+- `client.user.addWidget(type, gameId, comment?, tags?)` - Ajouter un widget de jeu au profil
+- `client.user.delWidget(type, gameId?)` - Supprimer un widget ou un jeu spécifique
+- `client.user.widgetsList()` - Obtenir la liste de tous les widgets
+
+- `client.quests.get()` - Récupérer toutes les quêtes disponibles
+- `client.quests.orbs()` - Obtenir le solde de la monnaie virtuelle
+- `client.quests.acceptQuest(questId, options?)` - S'inscrire à une quête
+- `client.quests.doingQuest(quest)` - Compléter automatiquement une quête
+- `client.quests.autoCompleteAll()` - Compléter automatiquement toutes les quêtes valides
+- `client.quests.getCompleted()` - Obtenir les quêtes terminées
+- `client.quests.getClaimable()` - Obtenir les quêtes réclamables
+- `client.quests.filterQuestsValid()` - Filtrer les quêtes valides
 
 
 <div align="center">
@@ -46,9 +64,9 @@
 - [x] ClientUser: Status, Activity, RemoteAuth, etc.
 - [X] Guild: Fetch Members, Join / Leave, Top emojis, etc.
 - [X] Interactions: Slash Commands, Buttons, Menu, Modal.
-- [X] Captcha & TOTP Handler
-- [X] Documentation
-- [x] Voice & Video
+- [ ] Captcha & TOTP Handler
+- [ ] Documentation
+- [ ] Voice & Video
 - [ ] Everything
 
 ## Installation
@@ -57,13 +75,13 @@
 > **Node.js 20.18.0 or newer is required**
 
 ```sh-session
-npm install discord.js-selfbot-v13@latest
+npm install djs-selfbot-v13@latest
 ```
 
 ## Example
 
 ```js
-const { Client } = require('discord.js-selfbot-v13');
+const { Client } = require('djs-selfbot-v13');
 const client = new Client();
 
 client.on('ready', async () => {

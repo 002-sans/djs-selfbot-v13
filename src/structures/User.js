@@ -136,6 +136,24 @@ class User extends Base {
       this.flags = new UserFlags(data.public_flags);
     }
 
+    if (data.display_name_styles) {
+      if (data.display_name_styles) {
+        /**
+         * The user avatar decoration's data
+         * @type {?AvatarDecorationData}
+         */
+        this.displayNameStyles = {
+          fontId: data.display_name_styles.fontId,
+          effectId: data.display_name_styles.effectId,
+          colors: data.display_name_styles.colors
+        };
+      } else {
+        this.displayNameStyles = null;
+      }
+    } else {
+      this.displayNameStyles ??= null;
+    }
+
     /**
      * @typedef {Object} AvatarDecorationData
      * @property {string} asset The avatar decoration hash
