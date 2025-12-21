@@ -14,32 +14,6 @@
 
 - discord.js-selfbot-v13 is a [Node.js](https://nodejs.org) module that allows user accounts to interact with the Discord API v9.
 
-## Nouveautés
-
-> **Nouvelles fonctionnalités ajoutées :**
-- `guild.mute()` - Supprime completement les pings
-- `guild.unmute()` - Remet les pings sur le serveur
-
-- `rpc.setDetailsURL(url)` - Met une URL pour les details du RPC
-- `rpc.setStateURL(url)` - Met une URL pour le state du RPC
-
-- `client.user.setNameStyle(fontName, effectName, color1, color2?)` - Définir le style du nom d'affichage avec police, effet et couleurs
-- `client.user.setClan(GuildID)` - Changer votre TAG de serveur
-- `client.user.deleteClan()` - Retire le TAG de serveur
-
-- `client.user.addWidget(type, gameId, comment?, tags?)` - Ajouter un widget de jeu au profil
-- `client.user.delWidget(type, gameId?)` - Supprimer un widget ou un jeu spécifique
-- `client.user.widgetsList()` - Obtenir la liste de tous les widgets
-
-- `client.quests.get()` - Récupérer toutes les quêtes disponibles
-- `client.quests.orbs()` - Obtenir le solde de la monnaie virtuelle
-- `client.quests.acceptQuest(questId, options?)` - S'inscrire à une quête
-- `client.quests.doingQuest(quest)` - Compléter automatiquement une quête
-- `client.quests.autoCompleteAll()` - Compléter automatiquement toutes les quêtes valides
-- `client.quests.getCompleted()` - Obtenir les quêtes terminées
-- `client.quests.getClaimable()` - Obtenir les quêtes réclamables
-- `client.quests.filterQuestsValid()` - Filtrer les quêtes valides
-
 
 <div align="center">
   <p>
@@ -48,6 +22,39 @@
     <a href="https://github.com/aiko-chan-ai/discord.js-selfbot-v13/actions"><img src="https://github.com/aiko-chan-ai/discord.js-selfbot-v13/actions/workflows/lint.yml/badge.svg" alt="Tests status" /></a>
   </p>
 </div>
+
+<details>
+<summary><strong>New Features</strong></summary>
+
+### Guild Management
+- `guild.mute(options?)` - Mute a guild completely (suppress all notifications)
+- `guild.unmute()` - Unmute a guild (restore all notifications)
+
+### RPC Enhancements
+- `rpc.setDetailsURL(url)` - Set a URL for RPC details
+- `rpc.setStateURL(url)` - Set a URL for RPC state
+
+### User Profile Customization
+- `client.user.setNameStyle(fontName, effectName, color1, color2?)` - Set display name style with font, effect and colors
+- `client.user.setClan(GuildID)` - Change your server clan tag
+- `client.user.deleteClan()` - Remove server clan tag
+
+### Profile Widgets
+- `client.user.addWidget(type, gameId, comment?, tags?)` - Add a game widget to profile
+- `client.user.delWidget(type, gameId?)` - Remove a widget or specific game
+- `client.user.widgetsList()` - Get list of all widgets
+
+### Quest System
+- `client.quests.get()` - Fetch all available quests
+- `client.quests.orbs()` - Get virtual currency balance
+- `client.quests.acceptQuest(questId, options?)` - Accept a quest
+- `client.quests.doingQuest(quest)` - Auto-complete a quest
+- `client.quests.autoCompleteAll()` - Auto-complete all valid quests
+- `client.quests.getCompleted()` - Get completed quests
+- `client.quests.getClaimable()` - Get claimable quests
+- `client.quests.filterQuestsValid()` - Filter valid quests
+
+</details>
 
 > [!WARNING]
 > **I don't take any responsibility for blocked Discord accounts that used this module.**
