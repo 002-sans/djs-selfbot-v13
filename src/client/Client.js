@@ -15,6 +15,7 @@ const BaseGuildEmojiManager = require('../managers/BaseGuildEmojiManager');
 const BillingManager = require('../managers/BillingManager');
 const ChannelManager = require('../managers/ChannelManager');
 const ClientUserSettingManager = require('../managers/ClientUserSettingManager');
+const DeveloperManager = require('../managers/DeveloperManager');
 const GuildManager = require('../managers/GuildManager');
 const PresenceManager = require('../managers/PresenceManager');
 const QuestManager = require('../managers/QuestManager');
@@ -158,6 +159,12 @@ class Client extends BaseClient {
      * @type {BillingManager}
      */
     this.billing = new BillingManager(this);
+
+    /**
+     * Manages developer applications
+     * @type {DeveloperManager}
+     */
+    this.developers = new DeveloperManager(this);
 
     /**
      * Manages quest-related API methods

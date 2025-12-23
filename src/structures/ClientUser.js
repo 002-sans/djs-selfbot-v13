@@ -203,7 +203,7 @@ class ClientUser extends User {
    * @example
    * // Set the client user's presence
    * client.user.setPresence({ activities: [{ name: 'with discord.js' }], status: 'idle' });
-   * @see {@link https://github.com/aiko-chan-ai/discord.js-selfbot-v13/blob/main/Document/RichPresence.md}
+   * @see {@link https://github.com/aiko-chan-ai/djs-selfbot-v13/blob/main/Document/RichPresence.md}
    */
   setPresence(data) {
     return this.client.presence.set(data);
@@ -248,7 +248,7 @@ class ClientUser extends User {
    * @example
    * // Set the client user's activity
    * client.user.setActivity('discord.js', { type: 'WATCHING' });
-   * @see {@link https://github.com/aiko-chan-ai/discord.js-selfbot-v13/blob/main/Document/RichPresence.md}
+   * @see {@link https://github.com/aiko-chan-ai/djs-selfbot-v13/blob/main/Document/RichPresence.md}
    */
   setActivity(name, options = {}) {
     if (!name) return this.setPresence({ activities: [], shardId: options.shardId });

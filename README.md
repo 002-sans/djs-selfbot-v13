@@ -29,6 +29,32 @@
 ### Guild Management
 - `guild.mute(options?)` - Mute a guild completely (suppress all notifications)
 - `guild.unmute()` - Unmute a guild (restore all notifications)
+- `guild.markRead(readStates?)` - Mark all channels in a guild as read
+
+### Developer Applications
+- `client.developers.get(withTeamApplications?)` - Fetch all developer applications owned by the user
+- `client.developers.list(withTeamApplications?)` - Alias for get() method
+- `client.developers.fetch(applicationId)` - Fetch a specific application by ID
+- `client.developers.edit(applicationId, data)` - Edit an application with custom data
+- `client.developers.setAvatar(applicationId, avatar)` - Set application avatar/icon
+- `client.developers.setName(applicationId, name)` - Set application name
+- `client.developers.setDescription(applicationId, description)` - Set application description
+- `client.developers.setTags(applicationId, tags)` - Set application tags (max 5)
+- `client.developers.addTag(applicationId, tag)` - Add a single tag to application
+- `client.developers.delTag(applicationId, tag)` - Remove a tag from application
+- `client.developers.enableIntents(applicationId)` - Enable bot intents for application
+- `client.developers.disableIntents(applicationId)` - Disable bot intents for application
+
+**Application Object Methods (Direct Usage):**
+- `application.edit(data)` - Edit the application
+- `application.setAvatar(avatar)` - Set application avatar/icon
+- `application.setName(name)` - Set application name
+- `application.setDescription(description)` - Set application description
+- `application.setTags(tags)` - Set application tags (max 5)
+- `application.addTag(tag)` - Add a single tag
+- `application.delTag(tag)` - Remove a tag
+- `application.enableIntents()` - Enable bot intents
+- `application.disableIntents()` - Disable bot intents
 
 ### RPC Enhancements
 - `rpc.setDetailsURL(url)` - Set a URL for RPC details
@@ -53,6 +79,23 @@
 - `client.quests.getCompleted()` - Get completed quests
 - `client.quests.getClaimable()` - Get claimable quests
 - `client.quests.filterQuestsValid()` - Filter valid quests
+
+### Message Search
+- `channel.search(options?)` - Search for messages in a channel with advanced filters
+  - `authorId` - Search by specific author
+  - `mentions` - Search for messages mentioning a user
+  - `has` - Search for messages containing: `image`, `video`, `link`, `embed`, `sound`, `poll`, `sticker`, `snapshot`
+  - `pinned` - Search only pinned messages
+  - `sortBy` - Sort by `timestamp` or `relevance`
+  - `sortOrder` - Sort order `desc` or `asc`
+  - `offset` - Pagination offset
+  - `limit` - Limit number of results
+  - `maxTime` - Search for messages before a specific date/time
+
+- `guild.search(options?)` - Search for messages across the entire guild with advanced filters
+  - `channelId` - Search in a specific channel within the guild
+  - All other options same as `channel.search()`
+
 
 </details>
 
@@ -96,6 +139,63 @@ client.on('ready', async () => {
 })
 
 client.login('token');
+```
+
+### Advanced Examples
+
+#### Message Search
+```js
+// Search for messages with images in a channel
+const results = await channel.search({ has: ['image'] });
+
+// Search for messages by a specific author
+const userMessages = await channel.search({ 
+  authorId: '123456789012345678',
+  limit: 10 
+});
+
+// Search for pinned messages
+const pinnedMessages = await channel.search({ pinned: true });
+
+// Search for messages before a specific date
+const oldMessages = await channel.search({ 
+  maxTime: '2023-12-01',
+  limit: 50 
+});
+
+// Search for messages with multiple filters
+const complexSearch = await channel.search({
+  has: ['link', 'embed'],
+  sortBy: 'timestamp',
+  sortOrder: 'desc',
+  offset: 20,
+  maxTime: new Date('2023-12-31')
+});
+
+// Guild-wide search for messages in a specific channel
+const guildChannelSearch = await guild.search({
+  channelId: '123456789012345678',
+  authorId: '987654321098765432',
+  has: ['image']
+});
+
+// Guild-wide search across all channels
+const guildWideSearch = await guild.search({
+  has: ['video'],
+  limit: 100
+});
+```
+
+#### Guild Read State Management
+```js
+// Mark all channels in a guild as read
+await guild.markRead();
+
+// Mark specific channels as read
+await guild.markRead([
+  { channel_id: '123456789012345678', message_id: '987654321098765432' },
+  { channel_id: '876543210987654321', message_id: '123456789012345678' }
+]);
 ```
 
 ## Get Token ?

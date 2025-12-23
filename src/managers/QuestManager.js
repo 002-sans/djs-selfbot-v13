@@ -76,7 +76,7 @@ class QuestManager extends BaseManager {
    * @returns {Promise<Object>} Quest data
    */
   async get() {
-    const data = await this.client.api.users('@me').quests.get();
+    const data = await this.client.api.quests('@me').get();
     
     // Cache quests
     if (data.quests) {
@@ -250,12 +250,9 @@ class QuestManager extends BaseManager {
   async doingQuest(quest) {
     const questName = quest.config.messages?.quest_name || 'Unknown Quest';
     
-    if (!quest.isEnrolledQuest()) {
-      console.log(`Enrolling in quest "${questName}"...`);
+    if (!quest.isEnrolledQuest()) 
       await this.acceptQuest(quest.id);
-    }
 
-    const applicationName = quest.config.application?.name || 'Unknown App';
     const taskConfig = quest.config.task_config;
     
     const taskName = [
@@ -266,10 +263,9 @@ class QuestManager extends BaseManager {
       'WATCH_VIDEO_ON_MOBILE'
     ].find(x => taskConfig.tasks?.[x] != null);
 
-    if (!taskName) {
-      console.log(`Unknown task type for quest "${questName}"`);
-      return;
-    }
+    if (!taskName)
+      return console.log(`Unknown task type for quest "${questName}"`);
+
 
     const secondsNeeded = taskConfig.tasks[taskName].target;
     let secondsDone = quest.userStatus?.progress?.[taskName]?.value ?? 0;
@@ -280,8 +276,6 @@ class QuestManager extends BaseManager {
       const interval = 1;
       const enrolledAt = new Date(quest.userStatus?.enrolled_at).getTime();
       let completed = false;
-
-      console.log(`Spoofing video for ${questName}.`);
 
       while (true) {
         const maxAllowed = Math.floor((Date.now() - enrolledAt) / 1000) + maxFuture;
@@ -305,8 +299,6 @@ class QuestManager extends BaseManager {
         await this.videoProgress(quest.id, secondsNeeded);
       }
 
-      console.log(`Quest "${questName}" completed!`);
-
     } else if (taskName === 'PLAY_ON_DESKTOP') {
       const interval = 60;
 
@@ -315,20 +307,11 @@ class QuestManager extends BaseManager {
         const res = await this.heartbeat(quest.id, quest.config.application.id, false);
         quest.updateUserStatus(res);
 
-        console.log(`Spoofed your game to ${applicationName}. Wait for ${Math.ceil((secondsNeeded - secondsDone) / 60)} more minutes.`);
         await this.timeout(interval * 1000);
       }
 
       const res = await this.heartbeat(quest.id, quest.config.application.id, true);
       quest.updateUserStatus(res);
-      console.log(`Quest "${questName}" completed!`);
-
-    } else if (taskName === 'STREAM_ON_DESKTOP') {
-      console.log('This no longer works in node for non-video quests. Use the discord desktop app to complete the', questName, 'quest!');
-    } else if (taskName === 'PLAY_ACTIVITY') {
-      console.log('This quest not supported. Use the discord desktop app to complete the', questName, 'quest!');
-    } else {
-      console.log('Unknown quest type. Use the discord desktop app to complete the', questName, 'quest!');
     }
   }
 

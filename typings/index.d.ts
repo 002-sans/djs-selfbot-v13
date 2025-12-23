@@ -426,6 +426,15 @@ export abstract class Application extends Base {
   public iconURL(options?: StaticImageURLOptions): string | null;
   public toJSON(): unknown;
   public toString(): string | null;
+  public edit(data: ApplicationEditData): Promise<Application>;
+  public setAvatar(avatar: BufferResolvable | Base64Resolvable | null): Promise<Application>;
+  public setName(name: string): Promise<Application>;
+  public setDescription(description: string): Promise<Application>;
+  public setTags(tags: string[]): Promise<Application>;
+  public addTag(tag: string): Promise<Application>;
+  public delTag(tag: string): Promise<Application>;
+  public enableIntents(): Promise<Application>;
+  public disableIntents(): Promise<Application>;
 }
 
 export class ApplicationCommand<PermissionsFetchType = {}> extends Base {
@@ -862,6 +871,7 @@ export class Client<Ready extends boolean = boolean> extends BaseClient {
   public sessions: SessionManager;
   public presences: PresenceManager;
   public billing: BillingManager;
+  public developers: DeveloperManager;
   public quests: QuestManager;
   public settings: ClientUserSettingManager;
   public readonly sessionId: If<Ready, string, undefined>;
@@ -933,6 +943,37 @@ export class Client<Ready extends boolean = boolean> extends BaseClient {
 export interface AcceptInviteOptions {
   bypassOnboarding: boolean;
   bypassVerify: boolean;
+}
+
+export interface ChannelSearchOptions {
+  authorId?: Snowflake;
+  mentions?: Snowflake;
+  has?: ('image' | 'video' | 'link' | 'embed' | 'sound' | 'poll' | 'sticker' | 'snapshot')[];
+  pinned?: boolean;
+  sortBy?: 'timestamp' | 'relevance';
+  sortOrder?: 'desc' | 'asc';
+  offset?: number;
+  limit?: number;
+  maxTime?: string | Date;
+}
+
+export interface MarkReadOptions {
+  channel_id: Snowflake;
+  message_id: Snowflake;
+  read_state_type?: number;
+}
+
+export interface GuildSearchOptions {
+  channelId?: Snowflake;
+  authorId?: Snowflake;
+  mentions?: Snowflake;
+  has?: ('image' | 'video' | 'link' | 'embed' | 'sound' | 'poll' | 'sticker' | 'snapshot')[];
+  pinned?: boolean;
+  sortBy?: 'timestamp' | 'relevance';
+  sortOrder?: 'desc' | 'asc';
+  offset?: number;
+  limit?: number;
+  maxTime?: string | Date;
 }
 
 export type OAuth2AuthorizeOptions = {
@@ -1593,6 +1634,7 @@ export class Guild extends AnonymousGuild {
   public safetyAlertsChannelId: Snowflake | null;
   public scheduledEvents: GuildScheduledEventManager;
   public settings: GuildSettingManager;
+  public profile: GuildProfile;
   public readonly shard: WebSocketShard;
   public shardId: number;
   public stageInstances: StageInstanceManager;
@@ -1673,6 +1715,8 @@ export class Guild extends AnonymousGuild {
   public setVanityCode(code?: string): Promise<this>;
   public mute(options?: GuildMuteOptions): Promise<any>;
   public unmute(): Promise<any>;
+  public markRead(readStates?: MarkReadOptions[]): Promise<any>;
+  public search(options?: GuildSearchOptions): Promise<any>;
 }
 
 export class GuildAuditLogs<T extends GuildAuditLogsResolvable = 'ALL'> {
@@ -2648,6 +2692,22 @@ export class BillingManager extends BaseManager {
   public fetchCurrentSubscription(): Promise<Collection<Snowflake, object>>;
 }
 
+export class DeveloperManager extends BaseManager {
+  constructor(client: Client);
+  public get(withTeamApplications?: boolean): Promise<Collection<Snowflake, Application>>;
+  public list(withTeamApplications?: boolean): Promise<Collection<Snowflake, Application>>;
+  public fetch(applicationId: Snowflake): Promise<Application>;
+  public edit(applicationId: Snowflake, data: ApplicationEditData): Promise<Application>;
+  public setAvatar(applicationId: Snowflake, avatar: BufferResolvable | Base64Resolvable | null): Promise<Application>;
+  public setName(applicationId: Snowflake, name: string): Promise<Application>;
+  public setDescription(applicationId: Snowflake, description: string): Promise<Application>;
+  public setTags(applicationId: Snowflake, tags: string[]): Promise<Application>;
+  public addTag(applicationId: Snowflake, tag: string): Promise<Application>;
+  public delTag(applicationId: Snowflake, tag: string): Promise<Application>;
+  public enableIntents(applicationId: Snowflake): Promise<Application>;
+  public disableIntents(applicationId: Snowflake): Promise<Application>;
+}
+
 export class QuestManager extends BaseManager {
   constructor(client: Client);
   public cache: Collection<string, Quest>;
@@ -2685,6 +2745,32 @@ export interface SessionClientInfo {
   location?: string;
   platform?: string;
   os?: string;
+}
+
+export class GuildProfile extends Base {
+  private constructor(guild: Guild);
+  public guild: Guild;
+  public bio: string | null;
+  public pronouns: string | null;
+  public accentColor: number | null;
+  public banner: string | null;
+  public themeColors: number[] | null;
+  public popoutAnimationParticleType: number | null;
+  public emojiId: Snowflake | null;
+  public guildId: Snowflake;
+  public badge: string | null;
+  public tag: string | null;
+  public bannerURL(options?: StaticImageURLOptions): string | null;
+  public edit(data: GuildProfileEditData): Promise<GuildProfile>;
+  public setBio(bio: string | null): Promise<GuildProfile>;
+  public setPronouns(pronouns: string | null): Promise<GuildProfile>;
+  public setAccentColor(color: ColorResolvable | null): Promise<GuildProfile>;
+  public setBanner(banner: BufferResolvable | Base64Resolvable | null): Promise<GuildProfile>;
+  public setThemeColors(colors: ColorResolvable[] | null): Promise<GuildProfile>;
+  public setPopoutAnimationParticleType(type: number | null): Promise<GuildProfile>;
+  public setEmojiId(emojiId: Snowflake | null): Promise<GuildProfile>;
+  public setBadge(badge: string | null): Promise<GuildProfile>;
+  public setTag(tag: string | null): Promise<GuildProfile>;
 }
 
 export class GuildBoost extends Base {
@@ -5172,6 +5258,7 @@ export interface TextBasedChannelFields extends PartialTextBasedChannelFields {
   fetchWebhooks(): Promise<Collection<Snowflake, Webhook>>;
   sendTyping(): Promise<{ message_send_cooldown_ms: number; thread_create_cooldown_ms: number } | undefined>;
   sendSlash(target: UserResolvable, commandName: string, ...args: any[]): Promise<Message | Modal>;
+  search(options?: ChannelSearchOptions): Promise<any>;
 }
 
 export function PartialWebhookMixin<T>(Base?: Constructable<T>): Constructable<T & PartialWebhookFields>;
@@ -6190,6 +6277,17 @@ export interface ClientUserEditData {
   bio?: string;
 }
 
+export interface ApplicationEditData {
+  name?: string;
+  description?: string;
+  icon?: BufferResolvable | Base64Resolvable | null;
+  tags?: string[];
+  interactionsEndpointUrl?: string | null;
+  roleConnectionsVerificationUrl?: string | null;
+  termsOfServiceUrl?: string | null;
+  privacyPolicyUrl?: string | null;
+}
+
 export interface CloseEvent {
   wasClean: boolean;
   code: number;
@@ -7070,6 +7168,18 @@ export interface GuildMemberEditData {
   avatar?: BufferResolvable | Base64Resolvable | null;
   banner?: BufferResolvable | Base64Resolvable | null;
   bio?: string | null;
+}
+
+export interface GuildProfileEditData {
+  bio?: string | null;
+  pronouns?: string | null;
+  accentColor?: ColorResolvable | null;
+  banner?: BufferResolvable | Base64Resolvable | null;
+  themeColors?: ColorResolvable[] | null;
+  popoutAnimationParticleType?: number | null;
+  emojiId?: Snowflake | null;
+  badge?: string | null;
+  tag?: string | null;
 }
 
 export type GuildMemberFlagsString =

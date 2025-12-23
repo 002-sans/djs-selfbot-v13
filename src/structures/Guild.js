@@ -1660,6 +1660,101 @@ class Guild extends AnonymousGuild {
   }
 
   /**
+   * Mark all channels in this guild as read
+   * @param {MarkReadOptions[]} [readStates] Array of read states to mark as read
+   * @returns {Promise<Object>} The response from Discord
+   * @example
+   * // Mark all channels as read
+   * guild.markRead();
+   * 
+   * // Mark specific channels as read
+   * guild.markRead([
+   *   { channel_id: '123456789012345678', message_id: '987654321098765432' }
+   * ]);
+   */
+  async markRead(readStates = []) {
+    // If no readStates provided, get all channels in guild
+    if (readStates.length === 0) {
+      const channels = this.channels.cache.filter(c => c.isTextBased());
+      readStates = channels.map(channel => ({
+        channel_id: channel.id,
+        message_id: channel.lastMessageId || '0',
+        read_state_type: 0
+      }));
+    }
+
+    const data = await this.client.api['read-states']['ack-bulk'].post({
+      data: readStates
+    });
+
+    return data;
+  }
+
+  /**
+   * Search for messages in this guild
+   * @param {GuildSearchOptions} [options] Search options
+   * @returns {Promise<Object>} The search results
+   * @example
+   * // Search for messages in a specific channel
+   * guild.search({ channelId: '123456789012345678' });
+   * 
+   * // Search for messages by author in a channel
+   * guild.search({ 
+   *   channelId: '123456789012345678',
+   *   authorId: '987654321098765432' 
+   * });
+   * 
+   * // Search for messages with images across the guild
+   * guild.search({ has: ['image'] });
+   */
+  async search(options = {}) {
+    const {
+      channelId,
+      authorId,
+      mentions,
+      has = [],
+      pinned,
+      sortBy = 'timestamp',
+      sortOrder = 'desc',
+      offset = 0,
+      limit,
+      maxTime
+    } = options;
+
+    const query = {
+      sort_by: sortBy,
+      sort_order: sortOrder,
+      offset: offset
+    };
+
+    if (channelId) query.channel_id = channelId;
+    if (authorId) query.author_id = authorId;
+    if (mentions) query.mentions = mentions;
+    if (pinned) query.pinned = true;
+
+    if (maxTime) {
+      const time = new Date(maxTime).getTime();
+      const maxId = (BigInt(time) - 1420070400000n) << 22n;
+      query.max_id = maxId.toString();
+    }
+    
+    // Add 'has' parameters
+    for (const hasType of has) {
+      if (!query.has) query.has = [];
+      query.has.push(hasType);
+    }
+
+    const data = await this.client.api.guilds(this.id).messages.search.get({ query });
+    
+    if (limit && data.messages) {
+      // data.messages est souvent un tableau de tableaux dans l'API search
+      data.messages = data.messages.flat().slice(0, limit);
+    }
+    
+    return data;
+  }
+
+  /**
    * Creates a collection of this guild's roles, sorted by their position and ids.
    * @returns {Collection<Snowflake, Role>}
    * @private

@@ -392,7 +392,9 @@ class Activity {
         this.type === activity.type &&
         this.url === activity.url &&
         this.state === activity.state &&
+        this.state_url === activity.state_url &&
         this.details === activity.details &&
+        this.details_url == activity.details_url &&
         this.emoji?.id === activity.emoji?.id &&
         this.emoji?.name === activity.emoji?.name)
     );

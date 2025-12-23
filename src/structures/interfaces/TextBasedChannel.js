@@ -385,6 +385,69 @@ class TextBasedChannel {
     return Util.createPromiseInteraction(this.client, nonce, 5000);
   }
 
+
+  /**
+   * Search for messages in this channel
+   * @param {ChannelSearchOptions} [options] Search options
+   * @returns {Promise<Object>} The search results
+   * @example
+   * // Search for messages by author
+   * channel.search({ authorId: '123456789012345678' });
+   * 
+   * // Search for messages with images
+   * channel.search({ has: ['image'] });
+   * 
+   * // Search for pinned messages
+   * channel.search({ pinned: true });
+   */
+  async search(options = {}) {
+    const {
+      authorId,
+      mentions,
+      has = [],
+      pinned,
+      sortBy = 'timestamp',
+      sortOrder = 'desc',
+      offset = 0,
+      limit,
+      maxTime
+    } = options;
+
+    const query = {
+      sort_by: sortBy,
+      sort_order: sortOrder,
+      offset: offset
+    };
+
+    if (maxTime) {
+      const time = new Date(maxTime).getTime();
+      const maxId = (BigInt(time) - 1420070400000n) << 22n;
+      query.max_id = maxId.toString();
+    }
+
+    if (authorId) query.author_id = authorId;
+    if (mentions) query.mentions = mentions;
+    if (pinned) query.pinned = true;
+    
+    for (const hasType of has) {
+      if (!query.has) query.has = [];
+      query.has.push(hasType);
+    }
+
+    if (this.guild) query.channel_id = this.id;
+
+    const endpoint = this.guild 
+      ? this.client.api.guilds(this.guild.id).messages.search
+      : this.client.api.channels(this.id).messages.search;
+
+    const data = await endpoint.get({ query });
+    
+    if (limit && data.messages) 
+      data.messages = data.messages.flat().slice(0, limit);
+    
+    return data;
+  }
+
   /**
    * Sends a typing indicator in the channel.
    * @returns {Promise<{ message_send_cooldown_ms: number, thread_create_cooldown_ms: number }|void>} Resolves upon the typing status being sent
@@ -511,6 +574,7 @@ class TextBasedChannel {
         'searchInteractionUserApps',
         'lastMessage',
         'lastPinAt',
+        'search',
         'sendTyping',
         'createMessageCollector',
         'awaitMessages',

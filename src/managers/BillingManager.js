@@ -30,7 +30,7 @@ class BillingManager extends BaseManager {
 
   /**
    * Fetches all the payment sources of the client
-   * @returns {Collection<Snowflake, Object>}
+   * @returns {Promise<Collection<Snowflake, Object>>}
    */
   async fetchPaymentSources() {
     // https://discord.com/api/v9/users/@me/billing/payment-sources
@@ -42,7 +42,7 @@ class BillingManager extends BaseManager {
 
   /**
    * Fetches all the guild boosts of the client
-   * @returns {Collection<Snowflake, GuildBoost>}
+   * @returns {Promise<Collection<Snowflake, GuildBoost>>}
    */
   async fetchGuildBoosts() {
     // https://discord.com/api/v9/users/@me/guilds/premium/subscription-slots
@@ -53,7 +53,7 @@ class BillingManager extends BaseManager {
 
   /**
    * Fetches the current subscription of the client
-   * @returns {Collection<Snowflake, Object>}
+   * @returns {Promise<Collection<Snowflake, Object>>}
    */
   async fetchCurrentSubscription() {
     // https://discord.com/api/v9/users/@me/billing/subscriptions

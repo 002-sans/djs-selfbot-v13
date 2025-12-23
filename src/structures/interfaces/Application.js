@@ -820,6 +820,134 @@ class Application extends Base {
   toJSON() {
     return super.toJSON({ createdTimestamp: true });
   }
+
+  /**
+   * Edits this application
+   * @param {ApplicationEditData} data The data to edit the application with
+   * @returns {Promise<Application>}
+   * @example
+   * // Edit the application
+   * application.edit({
+   *   name: 'My New Bot Name',
+   *   description: 'A cool bot description',
+   *   tags: ['utility', 'moderation']
+   * })
+   *   .then(app => console.log(`Updated: ${app.name}`))
+   *   .catch(console.error);
+   */
+  edit(data) {
+    return this.client.developers.edit(this.id, data);
+  }
+
+  /**
+   * Sets the avatar of this application
+   * @param {?(BufferResolvable|Base64Resolvable)} avatar The new avatar
+   * @returns {Promise<Application>}
+   * @example
+   * // Set application avatar
+   * application.setAvatar('./avatar.png')
+   *   .then(app => console.log(`Updated avatar for ${app.name}`))
+   *   .catch(console.error);
+   */
+  setAvatar(avatar) {
+    return this.client.developers.setAvatar(this.id, avatar);
+  }
+
+  /**
+   * Sets the name of this application
+   * @param {string} name The new name
+   * @returns {Promise<Application>}
+   * @example
+   * // Set application name
+   * application.setName('My Cool Bot')
+   *   .then(app => console.log(`Renamed to ${app.name}`))
+   *   .catch(console.error);
+   */
+  setName(name) {
+    return this.client.developers.setName(this.id, name);
+  }
+
+  /**
+   * Sets the description of this application
+   * @param {string} description The new description
+   * @returns {Promise<Application>}
+   * @example
+   * // Set application description
+   * application.setDescription('A helpful utility bot')
+   *   .then(app => console.log(`Updated description for ${app.name}`))
+   *   .catch(console.error);
+   */
+  setDescription(description) {
+    return this.client.developers.setDescription(this.id, description);
+  }
+
+  /**
+   * Sets the tags of this application (max 5 tags)
+   * @param {string[]} tags Array of tags (max 5)
+   * @returns {Promise<Application>}
+   * @example
+   * // Set application tags
+   * application.setTags(['utility', 'moderation', 'fun'])
+   *   .then(app => console.log(`Updated tags for ${app.name}`))
+   *   .catch(console.error);
+   */
+  setTags(tags) {
+    return this.client.developers.setTags(this.id, tags);
+  }
+
+  /**
+   * Adds a tag to this application
+   * @param {string} tag The tag to add
+   * @returns {Promise<Application>}
+   * @example
+   * // Add a tag to application
+   * application.addTag('music')
+   *   .then(app => console.log(`Added tag to ${app.name}`))
+   *   .catch(console.error);
+   */
+  addTag(tag) {
+    return this.client.developers.addTag(this.id, tag);
+  }
+
+  /**
+   * Removes a tag from this application
+   * @param {string} tag The tag to remove
+   * @returns {Promise<Application>}
+   * @example
+   * // Remove a tag from application
+   * application.delTag('music')
+   *   .then(app => console.log(`Removed tag from ${app.name}`))
+   *   .catch(console.error);
+   */
+  delTag(tag) {
+    return this.client.developers.delTag(this.id, tag);
+  }
+
+  /**
+   * Enables intents for this bot application
+   * @returns {Promise<Application>}
+   * @example
+   * // Enable intents for bot
+   * application.enableIntents()
+   *   .then(app => console.log(`Enabled intents for ${app.name}`))
+   *   .catch(console.error);
+   */
+  enableIntents() {
+    return this.client.developers.enableIntents(this.id);
+  }
+
+  /**
+   * Disables intents for this bot application
+   * @returns {Promise<Application>}
+   * @example
+   * // Disable intents for bot
+   * application.disableIntents()
+   *   .then(app => console.log(`Disabled intents for ${app.name}`))
+   *   .catch(console.error);
+   */
+  disableIntents() {
+    return this.client.developers.disableIntents(this.id);
+  }
 }
 
 module.exports = Application;
