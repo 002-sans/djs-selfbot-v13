@@ -304,6 +304,16 @@ class Activity {
       this.details = null;
     }
 
+    if ('details_url' in data) {
+      /**
+       * URL for the details of the activity
+       * @type {?string}
+       */
+      this.details_url = data.details_url;
+    } else {
+      this.details_url = null;
+    }
+
     if ('state' in data) {
       /**
        * State of the activity
@@ -312,6 +322,16 @@ class Activity {
       this.state = data.state;
     } else {
       this.state = null;
+    }
+
+    if ('state_url' in data) {
+      /**
+       * URL for the state of the activity
+       * @type {?string}
+       */
+      this.state_url = data.state_url;
+    } else {
+      this.state_url = null;
     }
 
     if ('sync_id' in data || 'syncId' in data) {

@@ -285,6 +285,7 @@ export class Activity {
   public readonly createdAt: Date;
   public createdTimestamp: number;
   public details: string | null;
+  public details_url: string | null;
   public emoji: EmojiIdentifierResolvable | null;
   public flags: Readonly<ActivityFlags>;
   public id: string;
@@ -296,6 +297,7 @@ export class Activity {
   public platform: ActivityPlatform | null;
   public sessionId: string | null;
   public state: string | null;
+  public state_url: string | null;
   public syncId: string | null;
   public timestamps: {
     start: number | null;

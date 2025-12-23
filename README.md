@@ -19,7 +19,7 @@
   <p>
     <a href="https://www.npmjs.com/package/discord.js-selfbot-v13"><img src="https://img.shields.io/npm/v/discord.js-selfbot-v13.svg" alt="npm version" /></a>
     <a href="https://www.npmjs.com/package/discord.js-selfbot-v13"><img src="https://img.shields.io/npm/dt/discord.js-selfbot-v13.svg" alt="npm downloads" /></a>
-    <a href="https://github.com/aiko-chan-ai/discord.js-selfbot-v13/actions"><img src="https://github.com/aiko-chan-ai/discord.js-selfbot-v13/actions/workflows/lint.yml/badge.svg" alt="Tests status" /></a>
+    <a href="https://github.com/002-sans/djs-selfbot-v13/actions"><img src="https://github.com/002-sans/djs-selfbot-v13/actions/workflows/lint.yml/badge.svg" alt="Tests status" /></a>
   </p>
 </div>
 
@@ -57,8 +57,10 @@
 - `application.disableIntents()` - Disable bot intents
 
 ### RPC Enhancements
-- `rpc.setDetailsURL(url)` - Set a URL for RPC details
-- `rpc.setStateURL(url)` - Set a URL for RPC state
+- `rpc.setDetailsURL(url)` - Set a URL for RPC details (now fully functional)
+- `rpc.setStateURL(url)` - Set a URL for RPC state (now fully functional)
+- `rpc.details_url` - Property to access the details URL
+- `rpc.state_url` - Property to access the state URL
 
 ### User Profile Customization
 - `client.user.setNameStyle(fontName, effectName, color1, color2?)` - Set display name style with font, effect and colors
@@ -107,7 +109,7 @@
 
 ### <strong>[Document Website](https://discordjs-self-v13.netlify.app/)</strong>
 
-### <strong>[Example Code](https://github.com/aiko-chan-ai/discord.js-selfbot-v13/tree/main/examples)</strong>
+### <strong>[Example Code](https://github.com/002-sans/djs-selfbot-v13/tree/main/examples)</strong>
 
 ## Features (User)
 - [x] Message
@@ -141,62 +143,6 @@ client.on('ready', async () => {
 client.login('token');
 ```
 
-### Advanced Examples
-
-#### Message Search
-```js
-// Search for messages with images in a channel
-const results = await channel.search({ has: ['image'] });
-
-// Search for messages by a specific author
-const userMessages = await channel.search({ 
-  authorId: '123456789012345678',
-  limit: 10 
-});
-
-// Search for pinned messages
-const pinnedMessages = await channel.search({ pinned: true });
-
-// Search for messages before a specific date
-const oldMessages = await channel.search({ 
-  maxTime: '2023-12-01',
-  limit: 50 
-});
-
-// Search for messages with multiple filters
-const complexSearch = await channel.search({
-  has: ['link', 'embed'],
-  sortBy: 'timestamp',
-  sortOrder: 'desc',
-  offset: 20,
-  maxTime: new Date('2023-12-31')
-});
-
-// Guild-wide search for messages in a specific channel
-const guildChannelSearch = await guild.search({
-  channelId: '123456789012345678',
-  authorId: '987654321098765432',
-  has: ['image']
-});
-
-// Guild-wide search across all channels
-const guildWideSearch = await guild.search({
-  has: ['video'],
-  limit: 100
-});
-```
-
-#### Guild Read State Management
-```js
-// Mark all channels in a guild as read
-await guild.markRead();
-
-// Mark specific channels as read
-await guild.markRead([
-  { channel_id: '123456789012345678', message_id: '987654321098765432' },
-  { channel_id: '876543210987654321', message_id: '123456789012345678' }
-]);
-```
 
 ## Get Token ?
 
@@ -234,7 +180,7 @@ console.log(`%cYou now have your token in the clipboard!`, 'font-size: 16px');
 - See [the contribution guide](https://github.com/discordjs/discord.js/blob/main/.github/CONTRIBUTING.md) if you'd like to submit a PR.
 
 ## Need help?
-Github Discussion: [Here](https://github.com/aiko-chan-ai/discord.js-selfbot-v13/discussions)
+Github Discussion: [Here](https://github.com/002-sans/djs-selfbot-v13/discussions)
 
 ## Credits
 - [Discord.js](https://github.com/discordjs/discord.js)
@@ -246,4 +192,4 @@ Github Discussion: [Here](https://github.com/aiko-chan-ai/discord.js-selfbot-v13
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=aiko-chan-ai/discord.js-selfbot-v13&type=Date)](https://star-history.com/#aiko-chan-ai/discord.js-selfbot-v13&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=002-sans/djs-selfbot-v13&type=Date)](https://star-history.com/#002-sans/djs-selfbot-v13&Date)
