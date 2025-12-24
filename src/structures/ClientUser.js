@@ -635,7 +635,7 @@ class ClientUser extends User {
    * @returns {Promise<ClientUser>}
    */
   setClan(guild) {
-    const id = this.guilds.resolveId(guild);
+    const id = this.client.guilds.resolveId(guild);
     if (!id) throw new TypeError('INVALID_TYPE', 'guild', 'GuildResolvable');
     
     return this.client.api.users['@me'].clan.put({ data: { identity_guild_id: id, identity_enabled: true } });

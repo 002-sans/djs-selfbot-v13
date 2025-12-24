@@ -472,6 +472,36 @@ class Client extends BaseClient {
   }
 
   /**
+   * Fetches a user using a bot token.
+   * @param {UserResolvable} user The user to fetch
+   * @param {string} botToken The bot token to use for the request
+   * @returns {Promise<User>}
+   * @example
+   * client.fetchUserWithBot('123456789012345678', 'Bot YOUR_BOT_TOKEN')
+   *   .then(user => console.log(`Fetched user: ${user.tag}`))
+   *   .catch(console.error);
+   */
+  async fetchUserWithBot(user, botToken) {
+    const id = this.users.resolveId(user);
+    if (!id) throw new TypeError('INVALID_TYPE', 'user', 'UserResolvable');
+    
+    // Clean the token (remove Bot prefix if present)
+    const cleanToken = botToken.replace(/^(Bot|Bearer)\s*/i, '');
+    
+    // Make the API request with the provided bot token
+    const data = await this.api.users(id).get({
+      auth: false,
+      headers: {
+        Authorization: `Bot ${cleanToken}`
+      }
+    });
+    
+    // Create and return the User object
+    const User = require('../structures/User');
+    return new User(this, data);
+  }
+
+  /**
    * Obtains the list of sticker packs available to Nitro subscribers from Discord.
    * @returns {Promise<Collection<Snowflake, StickerPack>>}
    * @example
