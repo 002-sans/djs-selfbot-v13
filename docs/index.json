@@ -1,0 +1,12 @@
+[
+  {
+    "id": "main",
+    "name": "Main",
+    "files": [
+      {
+        "name": "Welcome.md",
+        "path": "Welcome.md"
+      }
+    ]
+  }
+]

@@ -1,5 +1,19 @@
-- name: General
-  files:
-    - name: Welcome
-      id: welcome
-      path: ../../README.md
+id: "main"
+name: "Main"
+files:
+  - name: "General"
+    files:
+      - name: "Welcome"
+        type: "md"
+        content: |
+          # Discord.js Selfbot v13 Documentation
+          
+          Welcome to the Discord.js Selfbot v13 documentation.
+
+custom:
+  - name: "Client"
+    path: "src/client/Client.js"
+  - name: "BaseClient"
+    path: "src/client/BaseClient.js"
+  - name: "QuestManager"
+    path: "src/managers/QuestManager.js"
