@@ -10,15 +10,15 @@
 
 ## About
 
-<strong>Welcome to `discord.js-selfbot-v13@v3.7`, based on `discord.js@13.17` and backport `discord.js@14.21.0`</strong>
+<strong>Welcome to `djs-selfbot-v13@v3.7`, based on `discord.js@13.17` and backport `discord.js@14.21.0`</strong>
 
-- discord.js-selfbot-v13 is a [Node.js](https://nodejs.org) module that allows user accounts to interact with the Discord API v9.
+- djs-selfbot-v13 is a [Node.js](https://nodejs.org) module that allows user accounts to interact with the Discord API v9.
 
 
 <div align="center">
   <p>
-    <a href="https://www.npmjs.com/package/discord.js-selfbot-v13"><img src="https://img.shields.io/npm/v/discord.js-selfbot-v13.svg" alt="npm version" /></a>
-    <a href="https://www.npmjs.com/package/discord.js-selfbot-v13"><img src="https://img.shields.io/npm/dt/discord.js-selfbot-v13.svg" alt="npm downloads" /></a>
+    <a href="https://www.npmjs.com/package/djs-selfbot-v13"><img src="https://img.shields.io/npm/v/djs-selfbot-v13.svg" alt="npm version" /></a>
+    <a href="https://www.npmjs.com/package/djs-selfbot-v13"><img src="https://img.shields.io/npm/dt/djs-selfbot-v13.svg" alt="npm downloads" /></a>
     <a href="https://github.com/002-sans/djs-selfbot-v13/actions"><img src="https://github.com/002-sans/djs-selfbot-v13/actions/workflows/lint.yml/badge.svg" alt="Tests status" /></a>
   </p>
 </div>
