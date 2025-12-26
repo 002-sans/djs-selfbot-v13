@@ -1,5 +1,3 @@
-> [!IMPORTANT]
-> **This project is a fork of the [discord.js-selfbot-v13](https://github.com/aiko-chan-ai/discord.js-selfbot-v13) archived project.**
 
 <div align="center">
   <br />
@@ -13,6 +11,9 @@
 <strong>Welcome to `djs-selfbot-v13@v3.7`, based on `discord.js@13.17` and backport `discord.js@14.21.0`</strong>
 
 - djs-selfbot-v13 is a [Node.js](https://nodejs.org) module that allows user accounts to interact with the Discord API v9.
+
+> [!IMPORTANT]
+> **This project is a fork of the [discord.js-selfbot-v13](https://github.com/aiko-chan-ai/discord.js-selfbot-v13) archived project.**
 
 
 <div align="center">
