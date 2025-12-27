@@ -1,0 +1,39 @@
+{
+  "name": "djs-selfbot-v11",
+  "description": "A powerful library for interacting with the Discord API as a selfbot",
+  "version": "11.9.96",
+  "url": "https://github.com/aiko-chan-ai/discord.js-selfbot-v11",
+  "defaultClass": "Client",
+  "links": [
+    {
+      "label": "GitHub",
+      "url": "https://github.com/aiko-chan-ai/discord.js-selfbot-v11"
+    }
+  ],
+  "classes": [
+    {
+      "name": "Client",
+      "description": "The main hub for interacting with the Discord API"
+    },
+    {
+      "name": "Guild",
+      "description": "Represents a guild (server) on Discord"
+    },
+    {
+      "name": "Channel",
+      "description": "Represents any channel on Discord"
+    },
+    {
+      "name": "User",
+      "description": "Represents a user on Discord"
+    },
+    {
+      "name": "Message",
+      "description": "Represents a message on Discord"
+    },
+    {
+      "name": "Collection",
+      "description": "A Map with additional utility methods"
+    }
+  ]
+}
