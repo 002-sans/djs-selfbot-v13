@@ -16,6 +16,14 @@ const { Opcodes, VoiceOpcodes, VoiceStatus, Events } = require('../../util/Const
 const Speaking = require('../../util/Speaking');
 const Util = require('../../util/Util');
 
+function normalizeVoiceEndpoint(endpoint, { preservePort = false } = {}) {
+  const match = endpoint?.match(/^([^:]+)(?::(\d+))?/);
+  if (!match) return endpoint;
+  const [, host, port] = match;
+  if (!preservePort || !port || port === '443' || port === '80') return host;
+  return `${host}:${port}`;
+}
+
 // Workaround for Discord now requiring silence to be sent before being able to receive audio
 class SingleSilence extends Silence {
   _read() {
@@ -166,6 +174,18 @@ class VoiceConnection extends EventEmitter {
      * @type {Collection<Snowflake, StreamConnectionReadonly>}
      */
     this.streamWatchConnection = new Collection();
+
+    /**
+     * DAVE end-to-end encryption session
+     * @type {?DAVESession}
+     */
+    this.dave = null;
+
+    /**
+     * Connected client user IDs for DAVE MLS
+     * @type {Set<Snowflake>}
+     */
+    this.connectedClients = new Set();
   }
 
   /**
@@ -229,6 +249,20 @@ class VoiceConnection extends EventEmitter {
   }
 
   /**
+   * SSRC values assigned by the voice server.
+   * @returns {{ audioSsrc: number, videoSsrc: number, rtxSsrc: number }}
+   */
+  getStreamSsrcs() {
+    const stream = this.authentication.streams?.[0];
+    const audioSsrc = this.authentication.ssrc;
+    return {
+      audioSsrc,
+      videoSsrc: stream?.ssrc ?? audioSsrc + 1,
+      rtxSsrc: stream?.rtx_ssrc ?? audioSsrc + 2,
+    };
+  }
+
+  /**
    * Sets video status
    * @param {boolean} value Video on or off
    */
@@ -236,6 +270,10 @@ class VoiceConnection extends EventEmitter {
     if (value === this.videoStatus) return;
     if (this.status !== VoiceStatus.CONNECTED) return;
     this.videoStatus = value;
+    const attrs = this.videoAttributes ?? {};
+    const fps = attrs.fps ?? 30;
+    const height = attrs.height ?? 720;
+    const width = attrs.width ?? Math.round((height * 16) / 9);
     if (!value) {
       this.sockets.ws
         .sendPacket({
@@ -251,27 +289,28 @@ class VoiceConnection extends EventEmitter {
           this.emit('debug', e);
         });
     } else {
+      const { audioSsrc, videoSsrc, rtxSsrc } = this.getStreamSsrcs();
       this.sockets.ws
         .sendPacket({
           op: VoiceOpcodes.SOURCES,
           d: {
-            audio_ssrc: this.authentication.ssrc,
-            video_ssrc: this.authentication.ssrc + 1,
-            rtx_ssrc: this.authentication.ssrc + 2,
+            audio_ssrc: audioSsrc,
+            video_ssrc: videoSsrc,
+            rtx_ssrc: rtxSsrc,
             streams: [
               {
                 type: 'video',
                 rid: '100',
-                ssrc: this.authentication.ssrc + 1,
+                ssrc: videoSsrc,
                 active: true,
                 quality: 100,
-                rtx_ssrc: this.authentication.ssrc + 2,
-                max_bitrate: 8000000,
-                max_framerate: 60,
+                rtx_ssrc: rtxSsrc,
+                max_bitrate: 10_000_000,
+                max_framerate: fps,
                 max_resolution: {
-                  type: 'source',
-                  width: 0,
-                  height: 0,
+                  type: 'fixed',
+                  width,
+                  height,
                 },
               },
             ],
@@ -305,10 +344,13 @@ class VoiceConnection extends EventEmitter {
         self_mute: this.voice ? this.voice.selfMute : false,
         self_deaf: this.voice ? this.voice.selfDeaf : false,
         self_video: this.voice ? this.voice.selfVideo : false,
-        flags: 2,
       },
       options,
     );
+
+    if (options.self_video) {
+      options.flags = 2;
+    }
 
     this.emit('debug', `Sending voice state update: ${JSON.stringify(options)}`);
 
@@ -371,6 +413,21 @@ class VoiceConnection extends EventEmitter {
       this.checkAuthenticated();
     } else if (sessionId !== this.authentication.sessionId) {
       this.authentication.sessionId = sessionId;
+      if (
+        this.constructor.name !== 'StreamConnection' &&
+        [VoiceStatus.CONNECTED, VoiceStatus.CONNECTING].includes(this.status)
+      ) {
+        this.status = VoiceStatus.RECONNECTING;
+        if (this.sockets.ws) {
+          this.sockets.ws.shutdown();
+          this.sockets.ws = null;
+        }
+        if (this.sockets.udp) {
+          this.sockets.udp.shutdown();
+          this.sockets.udp = null;
+        }
+        this.checkAuthenticated();
+      }
       /**
        * Emitted when a new session ID is received.
        * @event VoiceConnection#newSession
@@ -386,8 +443,9 @@ class VoiceConnection extends EventEmitter {
    */
   checkAuthenticated() {
     const { token, endpoint, sessionId } = this.authentication;
+    const needsServerId = this.constructor.name === 'StreamConnection';
     this.emit('debug', `Authenticated with sessionId ${sessionId}`);
-    if (token && endpoint && sessionId) {
+    if (token && endpoint && sessionId && (!needsServerId || this.serverId)) {
       this.status = VoiceStatus.CONNECTING;
       /**
        * Emitted when we successfully initiate a voice connection.
@@ -440,8 +498,9 @@ class VoiceConnection extends EventEmitter {
    * @private
    */
   authenticate(options = {}) {
+    this._joinOptions = options;
     this.sendVoiceStateUpdate(options);
-    this.connectTimeout = setTimeout(() => this.authenticateFailed('VOICE_CONNECTION_TIMEOUT'), 15_000).unref();
+    this.connectTimeout = setTimeout(() => this.authenticateFailed('VOICE_CONNECTION_TIMEOUT'), 30_000).unref();
   }
 
   /**
@@ -500,6 +559,16 @@ class VoiceConnection extends EventEmitter {
   cleanup() {
     this.player.destroy();
     this.speaking = new Speaking().freeze();
+    if (this.dave) {
+      const isSharedDave =
+        this.constructor.name === 'StreamConnection' && this.voiceConnection?.dave === this.dave;
+      if (!isSharedDave) {
+        this.dave.destroy();
+        this.dave.removeAllListeners();
+      }
+      this.dave = null;
+    }
+    this.connectedClients.clear();
     const { ws, udp } = this.sockets;
 
     this.emit('debug', 'Connection clean up');
@@ -571,11 +640,21 @@ class VoiceConnection extends EventEmitter {
    * @param {Object} data The received data
    * @private
    */
+  isDaveReady() {
+    return (
+      !this.authentication.dave_protocol_version ||
+      (this.dave?.lastTransitionId === 0 && Boolean(this.dave?.session?.ready))
+    );
+  }
+
   onSessionDescription(data) {
     Object.assign(this.authentication, data);
     this.status = VoiceStatus.CONNECTED;
+    clearTimeout(this.connectTimeout);
+    let daveFallback;
     const ready = () => {
       clearTimeout(this.connectTimeout);
+      clearTimeout(daveFallback);
       this.emit('debug', `Ready with authentication details: ${JSON.stringify(this.authentication)}`);
       /**
        * Emitted once the connection is ready, when a promise to join a voice channel resolves,
@@ -584,10 +663,32 @@ class VoiceConnection extends EventEmitter {
        */
       this.emit('ready');
     };
-    if (this.dispatcher || this.videoDispatcher) {
+    const waitForDave = () => {
+      if (this.isDaveReady()) {
+        ready();
+        return;
+      }
+      const onTransitioned = () => {
+        if (this.isDaveReady()) {
+          this.sockets.ws?.removeListener('transitioned', onTransitioned);
+          ready();
+        }
+      };
+      this.sockets.ws?.on('transitioned', onTransitioned);
+      daveFallback = setTimeout(() => {
+        this.sockets.ws?.removeListener('transitioned', onTransitioned);
+        this.emit('debug', 'DAVE handshake incomplete, continuing with transport encryption only');
+        ready();
+      }, 15_000).unref();
+    };
+    if (data.dave_protocol_version) {
+      if (!this.dispatcher && !this.videoDispatcher) {
+        this.playAudio(new SingleSilence(), { type: 'opus', volume: false });
+      }
+      waitForDave();
+    } else if (this.dispatcher || this.videoDispatcher) {
       ready();
     } else {
-      // This serves to provide support for voice receive, sending audio is required to receive it.
       const dispatcher = this.playAudio(new SingleSilence(), { type: 'opus', volume: false });
       dispatcher.once('finish', ready);
     }
@@ -672,12 +773,97 @@ class VoiceConnection extends EventEmitter {
    * Create new connection to screenshare stream
    * @returns {Promise<StreamConnection>}
    */
+  waitForDaveReady() {
+    if (this.isDaveReady() || this.status === VoiceStatus.CONNECTED) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('VOICE_CONNECTION_TIMEOUT')), 30_000).unref();
+      const onReady = () => {
+        if (!this.isDaveReady()) return;
+        clearTimeout(timeout);
+        this.sockets.ws?.removeListener('transitioned', onReady);
+        resolve();
+      };
+      this.sockets.ws?.on('transitioned', onReady);
+      onReady();
+    });
+  }
+
+  stopExistingStream() {
+    return new Promise(resolve => {
+      const hadStreamConnection = Boolean(this.streamConnection);
+      if (this.streamConnection) {
+        this.streamConnection.disconnect();
+        this.streamConnection = null;
+      }
+
+      const streamKey = `${['DM', 'GROUP_DM'].includes(this.channel.type) ? 'call' : `guild:${this.channel.guild.id}`}:${
+        this.channel.id
+      }:${this.client.user.id}`;
+
+      const voiceState = this.channel.guild?.voiceStates.cache.get(this.client.user.id);
+      const wasStreaming = this.client.user?.voice?.streaming || voiceState?.streaming;
+
+      if (!wasStreaming && !hadStreamConnection) {
+        setTimeout(resolve, 200).unref();
+        return;
+      }
+
+      const sendDelete = () => {
+        this.channel.client.ws.broadcast({
+          op: Opcodes.STREAM_DELETE,
+          d: { stream_key: streamKey },
+        });
+      };
+
+      sendDelete();
+      if (wasStreaming) setTimeout(sendDelete, 400).unref();
+
+      let settled = false;
+      const cleanup = () => {
+        this.client.off(Events.VOICE_STATE_UPDATE, onState);
+        this.off('ready', onVoiceReady);
+      };
+      const finish = () => {
+        if (settled) return;
+        if (this.status !== VoiceStatus.CONNECTED) return;
+        settled = true;
+        cleanup();
+        setTimeout(resolve, 500).unref();
+      };
+
+      const onState = (_oldState, newState) => {
+        if (newState.id !== this.client.user.id || newState.streaming) return;
+        finish();
+      };
+      const onVoiceReady = () => finish();
+
+      this.client.on(Events.VOICE_STATE_UPDATE, onState);
+      this.on('ready', onVoiceReady);
+
+      if (!wasStreaming) {
+        setTimeout(resolve, 1500).unref();
+        return;
+      }
+
+      setTimeout(() => finish(), 2000).unref();
+      setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve();
+      }, 12_000).unref();
+    });
+  }
+
   createStreamConnection() {
     // eslint-disable-next-line consistent-return
     return new Promise((resolve, reject) => {
       if (this.streamConnection) {
         return resolve(this.streamConnection);
       } else {
+        this.waitForDaveReady()
+          .then(() => this.stopExistingStream())
+          .then(() => {
         const connection = (this.streamConnection = new StreamConnection(this.voiceManager, this.channel, this));
         connection.setVideoCodec(this.videoCodec); // Sync :?
         // Setup event...
@@ -697,7 +883,7 @@ class VoiceConnection extends EventEmitter {
               // Current user stream
               switch (event) {
                 case 'STREAM_CREATE': {
-                  this.streamConnection.setSessionId(this.authentication.sessionId);
+                  this.streamConnection.setSessionId(data.session_id || this.authentication.sessionId);
                   this.streamConnection.serverId = data.rtc_server_id;
                   break;
                 }
@@ -706,6 +892,13 @@ class VoiceConnection extends EventEmitter {
                   break;
                 }
                 case 'STREAM_DELETE': {
+                  if (
+                    [VoiceStatus.CONNECTING, VoiceStatus.AUTHENTICATING, VoiceStatus.RECONNECTING].includes(
+                      this.streamConnection.status,
+                    )
+                  ) {
+                    break;
+                  }
                   this.streamConnection.disconnect();
                   break;
                 }
@@ -743,7 +936,7 @@ class VoiceConnection extends EventEmitter {
         }
 
         connection.sendSignalScreenshare();
-        connection.sendScreenshareState(true);
+        connection.connectTimeout = setTimeout(() => connection.authenticateFailed('VOICE_CONNECTION_TIMEOUT'), 30_000).unref();
 
         connection.on('debug', msg =>
           this.channel.client.emit(
@@ -760,6 +953,7 @@ class VoiceConnection extends EventEmitter {
 
         connection.once('authenticated', () => {
           connection.once('ready', () => {
+            connection.sendScreenshareState(false);
             resolve(connection);
             connection.removeListener('error', reject);
           });
@@ -767,6 +961,8 @@ class VoiceConnection extends EventEmitter {
             this.streamConnection = null;
           });
         });
+        })
+          .catch(reject);
       }
     });
   }
@@ -811,7 +1007,7 @@ class VoiceConnection extends EventEmitter {
               // Current user stream
               switch (event) {
                 case 'STREAM_CREATE': {
-                  this.streamConnection.setSessionId(this.authentication.sessionId);
+                  this.streamConnection.setSessionId(data.session_id || this.authentication.sessionId);
                   this.streamConnection.serverId = data.rtc_server_id;
                   break;
                 }
@@ -820,6 +1016,13 @@ class VoiceConnection extends EventEmitter {
                   break;
                 }
                 case 'STREAM_DELETE': {
+                  if (
+                    [VoiceStatus.CONNECTING, VoiceStatus.AUTHENTICATING, VoiceStatus.RECONNECTING].includes(
+                      this.streamConnection.status,
+                    )
+                  ) {
+                    break;
+                  }
                   this.streamConnection.disconnect();
                   break;
                 }
@@ -963,6 +1166,49 @@ class StreamConnection extends VoiceConnection {
     return Promise.resolve(this);
   }
 
+  setTokenAndEndpoint(token, endpoint) {
+    this.emit('debug', `Token "${token}" and endpoint "${endpoint}"`);
+    if (!endpoint) return;
+
+    if (!token) {
+      this.authenticateFailed('VOICE_TOKEN_ABSENT');
+      return;
+    }
+
+    endpoint = normalizeVoiceEndpoint(endpoint, { preservePort: true });
+    this.emit('debug', `Endpoint resolved as ${endpoint}`);
+
+    if (!endpoint) {
+      this.authenticateFailed('VOICE_INVALID_ENDPOINT');
+      return;
+    }
+
+    const connect = () => {
+      if (this.status === VoiceStatus.AUTHENTICATING) {
+        this.authentication.token = token;
+        this.authentication.endpoint = endpoint;
+        this.checkAuthenticated();
+      } else if (token !== this.authentication.token || endpoint !== this.authentication.endpoint) {
+        this.reconnect(token, endpoint);
+      }
+    };
+
+    if (this.status === VoiceStatus.AUTHENTICATING) {
+      setTimeout(connect, 750).unref();
+    } else {
+      connect();
+    }
+  }
+
+  onSessionDescription(data) {
+    Object.assign(this.authentication, data);
+    this.status = VoiceStatus.CONNECTED;
+    this._sessionRetries = 0;
+    clearTimeout(this.connectTimeout);
+    this.emit('debug', `Ready with authentication details: ${JSON.stringify(this.authentication)}`);
+    this.emit('ready');
+  }
+
   joinStreamConnection() {
     throw new Error('STREAM_CANNOT_JOIN');
   }
@@ -1005,10 +1251,11 @@ class StreamConnection extends VoiceConnection {
       preferred_region: null,
     };
     this.emit('debug', `Signal Stream: ${JSON.stringify(data)}`);
-    return this.channel.client.ws.broadcast({
+    this.channel.client.ws.broadcast({
       op: Opcodes.STREAM_CREATE,
       d: data,
     });
+    this.sendScreenshareState(false);
   }
 
   /**

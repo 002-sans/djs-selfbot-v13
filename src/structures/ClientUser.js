@@ -268,6 +268,68 @@ class ClientUser extends User {
   }
 
   /**
+   * Sets the custom status of the client user.
+   * Updates both the Gateway (local real-time display) and the REST API (account persistence).
+   * @param {CustomStatus|CustomStatusOptions|string|null} options
+   *   A `CustomStatus` instance, an options object, a plain string for the state, or `null` to clear.
+   * @param {string} [options.state] Text displayed as the status
+   * @param {EmojiIdentifierResolvable} [options.emoji] Emoji shown next to the text
+   * @param {string} [options.expiresAt] ISO8601 date at which Discord auto-clears the status
+   * @param {number|number[]} [options.shardId] Shard(s) to broadcast the Gateway update on
+   * @returns {Promise<ClientPresence>}
+   * @example
+   * // With text + unicode emoji
+   * await client.user.setCustomStatus({ state: 'Coding...', emoji: '💻' });
+   * @example
+   * // Plain string shorthand
+   * await client.user.setCustomStatus('Taking a break');
+   * @example
+   * // Clear the custom status
+   * await client.user.setCustomStatus(null);
+   */
+  async setCustomStatus(options, shardId) {
+    const { CustomStatus } = require('../structures/Presence');
+
+    // ── 1. Normalise l'entrée ─────────────────────────────────────────────
+    let activity = null; // null = effacer
+    let restPayload = null;
+
+    if (options !== null && options !== undefined) {
+      if (typeof options === 'string') options = { state: options };
+
+      // Supporte un objet CustomStatus existant (déjà construit par l'utilisateur)
+      const cs = options instanceof CustomStatus
+        ? options
+        : new CustomStatus(this.client, {
+          state: options.state ?? null,
+          emoji: options.emoji ? { name: options.emoji } : undefined,
+        });
+
+      activity = cs.toJSON(); // { name, type, state, emoji }
+
+      restPayload = {
+        text: cs.state ?? null,
+        emoji_name: cs.emoji?.name ?? null,
+        emoji_id: cs.emoji?.id ?? null,
+        expires_at: options.expiresAt ?? null,
+      };
+    }
+
+    // ── 2. Gateway — visible localement en temps réel ────────────────────
+    const presenceActivities = activity ? [activity] : [];
+    const presence = this.setPresence({ activities: presenceActivities, shardId });
+
+    // ── 3. REST — persistance sur le compte Discord ───────────────────────
+    await this.client.api.users('@me').settings.patch({ data: { custom_status: restPayload } })
+      .catch(err => {
+        // Non bloquant : on ne veut pas casser setPresence si l'endpoint échoue
+        this.client.emit('warn', `[setCustomStatus] REST patch failed: ${err?.message ?? err}`);
+      });
+
+    return presence;
+  }
+
+  /**
    * Sets the banner of the logged in client.
    * @param {?(BufferResolvable|Base64Resolvable)} banner The new banner
    * @returns {Promise<ClientUser>}
@@ -466,10 +528,10 @@ class ClientUser extends User {
 
     // Get current widgets first
     const currentWidgets = await this.widgetsList();
-    
+
     // Find existing widget of this type or create new one
     let targetWidget = currentWidgets.widgets.find(w => w.data.type === type);
-    
+
     if (!targetWidget) {
       // Create new widget if it doesn't exist
       targetWidget = {
@@ -488,7 +550,7 @@ class ClientUser extends User {
       const gameData = { game_id: gameId };
       if (comment !== null) gameData.comment = comment;
       if (tags.length > 0) gameData.tags = tags;
-      
+
       targetWidget.data.games.push(gameData);
     }
 
@@ -516,7 +578,7 @@ class ClientUser extends User {
 
     // Get current widgets
     const currentWidgets = await this.widgetsList();
-    
+
     if (gameId) {
       // Remove specific game from widget
       const targetWidget = currentWidgets.widgets.find(w => w.data.type === type);
@@ -611,7 +673,7 @@ class ClientUser extends User {
 
     const primaryColor = resolveColor(color1);
     const colors = [primaryColor];
-    
+
     if (color2 !== null) {
       const secondaryColor = resolveColor(color2);
       colors.push(secondaryColor);
@@ -630,6 +692,44 @@ class ClientUser extends User {
   }
 
   /**
+ * Search messages across all DMs/GDMs using the tabs API.
+ * Supports pagination via offset.
+ * @param {Object} [options] Search options
+ * @param {string} [options.sortBy='timestamp'] Sort by ('timestamp' or 'relevance')
+ * @param {string} [options.sortOrder='desc'] Sort order ('asc' or 'desc')
+ * @param {number} [options.offset=0] Pagination offset
+ * @param {number} [options.limit=25] Results per page (max 25)
+ * @param {boolean} [options.trackExactTotal=true] Track exact total hits
+ * @returns {Promise<{ messages: Message[], total_results: number }>}
+ */
+  async searchTab(options = {}) {
+    const {
+      sortBy = 'timestamp',
+      sortOrder = 'desc',
+      offset = 0,
+      limit = 25,
+      trackExactTotal = true,
+    } = options;
+
+    const data = await this.client.api.users['@me'].messages.search.tabs.post({
+      data: {
+        tabs: {
+          messages: {
+            sort_by: sortBy,
+            sort_order: sortOrder,
+            author_id: [this.id],
+            offset,
+            limit: Math.min(limit, 25),
+          },
+        },
+        track_exact_total_hits: trackExactTotal,
+      },
+    });
+
+    return data;
+  }
+
+  /**
    * Set the TAG of a guild.
    * @param {GuildIDResolve} guild The guild with the tag
    * @returns {Promise<ClientUser>}
@@ -637,7 +737,7 @@ class ClientUser extends User {
   setClan(guild) {
     const id = this.client.guilds.resolveId(guild);
     if (!id) throw new TypeError('INVALID_TYPE', 'guild', 'GuildResolvable');
-    
+
     return this.client.api.users['@me'].clan.put({ data: { identity_guild_id: id, identity_enabled: true } });
   }
 
@@ -648,6 +748,79 @@ class ClientUser extends User {
   deleteClan() {
     return this.client.api.users['@me'].clan.put({ data: { identity_guild_id: null, identity_enabled: false } });
   }
-}
 
+  /**
+ * Fetch a user's profile
+ * @param {Snowflake} userId The user's ID
+ * @param {Object} [options] Options
+ * @param {string} [options.type='popout'] Profile type ('popout', 'full')
+ * @param {boolean} [options.withMutualGuilds=true] Include mutual guilds
+ * @param {boolean} [options.withMutualFriends=true] Include mutual friends
+ * @param {boolean} [options.withMutualFriendsCount=false] Include mutual friends count
+ * @param {Snowflake} [options.guildId] Guild ID for context
+ * @returns {Promise<UserProfile>}
+ */
+  async fetchProfile(userId, options = {}) {
+    const {
+      type = 'popout',
+      withMutualGuilds = true,
+      withMutualFriends = true,
+      withMutualFriendsCount = false,
+      guildId,
+    } = options;
+
+    const query = {
+      type,
+      with_mutual_guilds: withMutualGuilds,
+      with_mutual_friends: withMutualFriends,
+      with_mutual_friends_count: withMutualFriendsCount,
+    };
+
+    if (guildId) query.guild_id = guildId;
+
+    const data = await this.client.api.users(userId).profile.get({ query });
+    const user = this.client.users._add(data.user);
+
+    let member = null;
+    if (data.guild_member) {
+      const resolvedGuildId = guildId ?? data.guild_member_profile?.guild_id;
+      const guild = resolvedGuildId ? this.client.guilds.cache.get(resolvedGuildId) : null;
+      if (guild) {
+        member = guild.members._add({
+          ...data.guild_member,
+          user: data.guild_member.user ?? data.user,
+        });
+      }
+    }
+
+    const mutualFriends = (data.mutual_friends ?? []).map(u => this.client.users._add(u));
+
+    return {
+      user,
+      member,
+      profile: {
+        bio: data.user_profile?.bio ?? null,
+        accentColor: data.user_profile?.accent_color ?? null,
+        pronouns: data.user_profile?.pronouns ?? null,
+        banner: data.user_profile?.banner ?? null,
+        themeColors: data.user_profile?.theme_colors ?? null,
+        profileEffect: data.user_profile?.profile_effect ?? null,
+        emoji: data.user_profile?.emoji ?? null,
+      },
+      premiumType: data.premium_type ?? null,
+      premiumSince: data.premium_since ? new Date(data.premium_since) : null,
+      premiumGuildSince: data.premium_guild_since ? new Date(data.premium_guild_since) : null,
+      badges: data.badges ?? [],
+      guildBadges: data.guild_badges ?? [],
+      connectedAccounts: data.connected_accounts ?? [],
+      mutualFriends,
+      mutualFriendsCount: data.mutual_friends_count ?? 0,
+      mutualGuilds: data.mutual_guilds ?? [],
+      widgets: data.widgets ?? [],
+      wishlistSettings: data.wishlist_settings ?? null,
+      guildMemberProfile: data.guild_member_profile ?? null,
+      legacyUsername: data.legacy_username ?? null,
+    };
+  }
+}
 module.exports = ClientUser;

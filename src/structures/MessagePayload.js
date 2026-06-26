@@ -172,6 +172,16 @@ class MessagePayload {
       allowedMentions = Util.cloneObject(allowedMentions);
       allowedMentions.replied_user = allowedMentions.repliedUser;
       delete allowedMentions.repliedUser;
+
+      const guild = this.target.guild ?? this.target.channel?.guild;
+      if (guild && !this.isWebhook) {
+        const permissions = this.target.channel?.permissionsFor(this.target.client.user);
+        if (permissions) {
+          if (allowedMentions.parse?.includes('everyone') && !permissions.has(Permissions.FLAGS.MENTION_EVERYONE, false)) {
+            allowedMentions.parse = allowedMentions.parse.filter(p => p !== 'everyone');
+          }
+        }
+      }
     }
 
     let message_reference;

@@ -29,6 +29,8 @@ class ActionsManager {
     this.register(require('./GuildEmojiUpdate'));
     this.register(require('./GuildEmojisUpdate'));
     this.register(require('./GuildIntegrationsUpdate'));
+    this.register(require('./GuildJoinRequestCreate'));
+    this.register(require('./GuildJoinRequestDelete'));
     this.register(require('./GuildMemberRemove'));
     this.register(require('./GuildMemberUpdate'));
     this.register(require('./GuildRoleCreate'));

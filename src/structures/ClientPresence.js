@@ -41,19 +41,43 @@ class ClientPresence extends Presence {
       since: typeof since === 'number' && !Number.isNaN(since) ? this.since : 0,
       status: status ?? this.status,
     };
+
+    // Récupère le custom status actuellement en cache pour ne pas l'écraser
+    // lors d'un setActivity / setStatus qui ne touche pas au custom status
+    const existingCustom = this.activities?.find(a =>
+      CustomStatusActivityTypes.includes(a.type),
+    );
+
     if (activities?.length) {
+      let hasCustom = false;
       for (const [i, activity] of activities.entries()) {
         if (typeof activity.name !== 'string') throw new TypeError('INVALID_TYPE', `activities[${i}].name`, 'string');
 
         activity.type ??= ActivityTypes.PLAYING;
         if (typeof activity.type === 'string') activity.type = ActivityTypes[activity.type];
 
-        if (CustomStatusActivityTypes.includes(activity.type) && !activity.state) {
-          activity.state = activity.name;
-          activity.name = 'Custom Status';
+        if (CustomStatusActivityTypes.includes(activity.type)) {
+          hasCustom = true;
+          if (!activity.state) {
+            activity.state = activity.name;
+            activity.name = 'Custom Status';
+          }
         }
 
         data.activities.push(activity);
+      }
+
+      // Si le tableau d'activités passé ne contient pas de custom status,
+      // réinjecte celui du cache pour ne pas le perdre
+      if (!hasCustom && existingCustom) {
+        data.activities.unshift({
+          type: typeof existingCustom.type === 'string'
+            ? ActivityTypes[existingCustom.type]
+            : existingCustom.type,
+          name: existingCustom.name ?? 'Custom Status',
+          state: existingCustom.state ?? null,
+          emoji: existingCustom.emoji ?? null,
+        });
       }
     } else if (!activities && (status || afk || since) && this.activities.length) {
       data.activities.push(

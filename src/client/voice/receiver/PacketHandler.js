@@ -72,7 +72,7 @@ class PacketHandler extends EventEmitter {
     return stream;
   }
 
-  parseBuffer(buffer) {
+  parseBuffer(buffer, userId) {
     const { secret_key, mode } = this.receiver.connection.authentication;
     // Open packet
     if (!secret_key) return new Error('secret_key cannot be null or undefined');
@@ -129,7 +129,14 @@ class PacketHandler extends EventEmitter {
     }
     */
 
-    return RtpPacket.deSerialize(Buffer.concat([header, packet]));
+    const rtp = RtpPacket.deSerialize(Buffer.concat([header, packet]));
+    const dave = this.connection.dave;
+    if (dave && userId && rtp.payload) {
+      const decrypted = dave.decrypt(rtp.payload, userId);
+      if (decrypted === null) return new Error('DAVE_DECRYPT_FAILED');
+      rtp.payload = decrypted;
+    }
+    return rtp;
   }
 
   audioReceiver(ssrc, userStat, opusPacket) {
@@ -233,12 +240,12 @@ class PacketHandler extends EventEmitter {
     let userStat, packet;
     if (this.connection.ssrcMap.has(ssrc)) {
       userStat = this.connection.ssrcMap.get(ssrc); // Audio_ssrc
-      packet = this.parseBuffer(buffer);
+      packet = this.parseBuffer(buffer, userStat.userId);
       this.audioReceiver(ssrc, userStat, packet);
       this.audioReceiverForStream(ssrc, userStat, packet);
     } else if (this.connection.ssrcMap.has(ssrc - 1)) {
       userStat = this.connection.ssrcMap.get(ssrc - 1); // Video_ssrc
-      packet = this.parseBuffer(buffer);
+      packet = this.parseBuffer(buffer, userStat.userId);
       this.videoReceiver(ssrc, userStat, packet);
     }
     if (userStat && !(packet instanceof Error)) this.receiver.emit('receiverData', userStat, packet);

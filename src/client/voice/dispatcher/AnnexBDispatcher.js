@@ -20,7 +20,8 @@ Please use the @dank074/discord-video-stream library for the best support.
 const { Buffer } = require('buffer');
 const VideoDispatcher = require('./VideoDispatcher');
 const Util = require('../../../util/Util');
-const { H264Helpers, H265Helpers } = require('../player/processing/AnnexBNalSplitter');
+const { H264Helpers, H265Helpers, H264NalUnitTypes, H265NalUnitTypes } = require('../player/processing/AnnexBNalSplitter');
+const { rewriteSPSVUI } = require('../player/processing/SPSVUIRewriter');
 
 class AnnexBDispatcher extends VideoDispatcher {
   constructor(player, highWaterMark = 12, streams, fps, nalFunctions, payloadType) {
@@ -28,8 +29,65 @@ class AnnexBDispatcher extends VideoDispatcher {
     this._nalFunctions = nalFunctions;
   }
 
+  _rewriteH264SPS(accessUnit) {
+    const parts = [];
+    let offset = 0;
+    while (offset < accessUnit.length) {
+      const naluSize = accessUnit.readUInt32BE(offset);
+      offset += 4;
+      let nalu = accessUnit.subarray(offset, offset + naluSize);
+      if (this._nalFunctions === H264Helpers && H264Helpers.getUnitType(nalu) === 7) {
+        try {
+          nalu = rewriteSPSVUI(nalu);
+        } catch {
+          // keep original SPS on rewrite failure
+        }
+      }
+      const header = Buffer.alloc(4);
+      header.writeUInt32BE(nalu.length);
+      parts.push(header, nalu);
+      offset += naluSize;
+    }
+    return Buffer.concat(parts);
+  }
+
+  _accessUnitIsKeyframe(accessUnit) {
+    let offset = 0;
+    while (offset < accessUnit.length) {
+      const naluSize = accessUnit.readUInt32BE(offset);
+      offset += 4;
+      const nalu = accessUnit.subarray(offset, offset + naluSize);
+      const unitType = this._nalFunctions.getUnitType(nalu);
+      if (this._nalFunctions === H264Helpers) {
+        if (unitType === H264NalUnitTypes.CodedSliceIdr) return true;
+      } else if (
+        unitType === H265NalUnitTypes.IDR_W_RADL ||
+        unitType === H265NalUnitTypes.IDR_N_LP ||
+        unitType === H265NalUnitTypes.CRA_NUT
+      ) {
+        return true;
+      }
+      offset += naluSize;
+    }
+    return false;
+  }
+
+  _sendVideoPacket(naluPayload, isLastPacket, isKeyframe) {
+    const includeContentType = isKeyframe && isLastPacket && this.player.isScreenSharing;
+    this._playChunk(
+      Buffer.concat([this.createPayloadExtension(includeContentType), naluPayload]),
+      isLastPacket,
+      { isKeyframe },
+    );
+  }
+
   _codecCallback(frame) {
-    let accessUnit = frame;
+    let accessUnit = this._nalFunctions === H264Helpers ? this._rewriteH264SPS(frame) : frame;
+    const isKeyframe = this._accessUnitIsKeyframe(accessUnit);
+    const dave = this.player.voiceConnection.dave;
+    if (dave?.session?.ready) {
+      accessUnit = dave.encryptVideo(accessUnit, this.player.voiceConnection.videoCodec);
+    }
     let offset = 0;
 
     // Extract NALUs from the access unit
@@ -39,24 +97,19 @@ class AnnexBDispatcher extends VideoDispatcher {
       const nalu = accessUnit.subarray(offset, offset + naluSize);
       const isLastNal = offset + naluSize >= accessUnit.length;
       if (nalu.length <= this.mtu) {
-        // Send as Single NAL Unit Packet.
-        this._playChunk(Buffer.concat([this.createPayloadExtension(), nalu]), isLastNal);
+        this._sendVideoPacket(nalu, isLastNal, isKeyframe);
       } else {
         const [naluHeader, naluData] = this._nalFunctions.splitHeader(nalu);
         const dataFragments = this.partitionMtu(naluData);
-        // Send as Fragmentation Unit A (FU-A):
         for (let fragmentIndex = 0; fragmentIndex < dataFragments.length; fragmentIndex++) {
           const data = dataFragments[fragmentIndex];
           const isFirstPacket = fragmentIndex === 0;
           const isFinalPacket = fragmentIndex === dataFragments.length - 1;
 
-          this._playChunk(
-            Buffer.concat([
-              this.createPayloadExtension(),
-              this.makeFragmentationUnitHeader(isFirstPacket, isFinalPacket, naluHeader),
-              data,
-            ]),
+          this._sendVideoPacket(
+            Buffer.concat([this.makeFragmentationUnitHeader(isFirstPacket, isFinalPacket, naluHeader), data]),
             isLastNal && isFinalPacket,
+            isKeyframe,
           );
         }
       }

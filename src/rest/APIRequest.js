@@ -16,9 +16,7 @@ class APIRequest {
     this.route = options.route;
     this.options = options;
     this.retries = 0;
-
     this.fullUserAgent = this.client.options.http.headers['User-Agent'];
-
     this.client.options.ws.properties.browser_user_agent = this.fullUserAgent;
 
     let queryString = '';

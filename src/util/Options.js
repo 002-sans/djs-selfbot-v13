@@ -1,7 +1,7 @@
 'use strict';
 
-const { randomUUID } = require('node:crypto');
 const { UserAgent } = require('./Constants');
+const ClientProperties = require('./ClientProperties');
 const Intents = require('./Intents');
 
 /**
@@ -54,6 +54,7 @@ const Intents = require('./Intents');
  * @property {number} [captchaRetryLimit=3] Captcha retry limit
  * @property {CaptchaSolver} [captchaSolver] Captcha Solver
  * @property {string} [TOTPKey] TOTP key / 2FA Key for two-factor authentication
+ * @property {Snowflake|null} [questVoiceChannelId=null] Voice channel id used for stream/activity quests
  * This is a 32-character Base32 string (excluding spaces), typically shown only once during your 2FA setup (QR code), or in the "Manual Entry" section.
  * The library automatically removes spaces and converts the secret to uppercase.
  * Example value: 'ftc3 uz6q 5lpw 2kew 4thr vtyp n2cu topn' or 'WSLIVE6EKYSRMVRBZLFGG2KVIVJMMQY5'
@@ -157,10 +158,20 @@ const Intents = require('./Intents');
  */
 class Options extends null {
   /**
+   * Fetches the latest Discord client properties and updates cached defaults.
+   * @returns {Promise<?Object>}
+   */
+  static fetchClientProperties() {
+    return ClientProperties.awaitLatest();
+  }
+
+  /**
    * The default client options.
    * @returns {ClientOptions}
    */
   static createDefault() {
+    ClientProperties.ensureFetched();
+
     return {
       DMChannelVoiceStatusSync: 0,
       captchaRetryLimit: 3,
@@ -171,6 +182,7 @@ class Options extends null {
         throw err;
       },
       TOTPKey: null,
+      questVoiceChannelId: null,
       closeTimeout: 5_000,
       waitGuildTimeout: 15_000,
       shardCount: 1,
@@ -192,27 +204,24 @@ class Options extends null {
       sweepers: {},
       ws: {
         capabilities: 0, // https://discord-userdoccers.vercel.app/topics/gateway#gateway-capabilities
-        properties: {
+        properties: ClientProperties.createRuntimeProperties({
           os: 'Windows',
           browser: 'Discord Client',
           release_channel: 'stable',
-          client_version: '1.0.9215',
-          os_version: '10.0.19045',
+          client_version: ClientProperties.FALLBACK_WS_PROPERTIES.client_version,
+          os_version: '10',
           os_arch: 'x64',
           app_arch: 'x64',
           system_locale: 'en-US',
           has_client_mods: false,
-          client_launch_id: randomUUID(),
           browser_user_agent: UserAgent,
-          browser_version: '37.6.0',
+          browser_version: ClientProperties.FALLBACK_WS_PROPERTIES.browser_version,
           os_sdk_version: '19045',
-          client_build_number: 471091,
-          native_build_number: 72186,
+          client_build_number: ClientProperties.FALLBACK_WS_PROPERTIES.client_build_number,
+          native_build_number: ClientProperties.FALLBACK_WS_PROPERTIES.native_build_number,
           client_event_source: null,
-          launch_signature: randomUUID(),
-          client_heartbeat_session_id: randomUUID(),
           client_app_state: 'focused',
-        },
+        }),
         compress: false,
         client_state: {
           guild_versions: {},

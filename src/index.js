@@ -53,6 +53,7 @@ exports.GuildChannelManager = require('./managers/GuildChannelManager');
 exports.GuildEmojiManager = require('./managers/GuildEmojiManager');
 exports.GuildEmojiRoleManager = require('./managers/GuildEmojiRoleManager');
 exports.GuildInviteManager = require('./managers/GuildInviteManager');
+exports.GuildJoinRequestManager = require('./managers/GuildJoinRequestManager');
 exports.GuildManager = require('./managers/GuildManager');
 exports.GuildMemberManager = require('./managers/GuildMemberManager');
 exports.GuildMemberRoleManager = require('./managers/GuildMemberRoleManager');
@@ -74,6 +75,9 @@ exports.WebSocketManager = require('./client/websocket/WebSocketManager');
 exports.WebSocketShard = require('./client/websocket/WebSocketShard');
 exports.RelationshipManager = require('./managers/RelationshipManager');
 exports.UserNoteManager = require('./managers/UserNoteManager');
+exports.QuestManager = require('./managers/QuestManager');
+exports.Quest = require('./managers/QuestManager').Quest;
+exports.BackupManager = require('./managers/BackupManager');
 
 // Structures
 exports.Activity = require('./structures/Presence').Activity;
@@ -99,6 +103,7 @@ exports.DMChannel = require('./structures/DMChannel');
 exports.Emoji = require('./structures/Emoji').Emoji;
 exports.ForumChannel = require('./structures/ForumChannel');
 exports.Guild = require('./structures/Guild').Guild;
+exports.GuildJoinRequest = require('./structures/GuildJoinRequest');
 exports.GuildAuditLogs = require('./structures/GuildAuditLogs');
 exports.GuildAuditLogsEntry = require('./structures/GuildAuditLogs').Entry;
 exports.GuildBan = require('./structures/GuildBan');

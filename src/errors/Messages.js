@@ -186,7 +186,11 @@ const Messages = {
   VOICE_USER_MISSING: "Couldn't resolve the user to create stream.",
   VOICE_JOIN_CHANNEL: (full = false) =>
     `You do not have permission to join this voice channel${full ? '; it is full.' : '.'}`,
-  VOICE_CONNECTION_TIMEOUT: 'Connection not established within 15 seconds.',
+  VOICE_CONNECTION_TIMEOUT:
+    'Connection not established within 30 seconds. Close the official Discord app (desktop/mobile) on this account, leave any voice channel, then retry.',
+  VOICE_DAVE_REQUIRED: '%s',
+  VOICE_SESSION_EXPIRED:
+    'Voice session is no longer valid (4006). Quit any other Discord client on this account, leave voice channels, then retry.',
   VOICE_TOKEN_ABSENT: 'Token not provided from voice server packet.',
   VOICE_SESSION_ABSENT: 'Session ID not supplied.',
   VOICE_INVALID_ENDPOINT: 'Invalid endpoint received.',
@@ -208,6 +212,9 @@ const Messages = {
 
   STREAM_CONNECTION_READONLY: 'Cannot send data to a read-only stream',
   STREAM_CANNOT_JOIN: 'Cannot join a stream to itself',
+  STREAM_URL_REQUIRED: 'A url is required to start a stream.',
+  STREAM_CHANNEL_REQUIRED: 'guildId and channelId are required to start a stream.',
+  STREAM_CHANNEL_NOT_FOUND: 'The specified voice channel could not be found.',
   VOICE_USER_NOT_STREAMING: 'User is not streaming',
   POLL_ALREADY_EXPIRED: 'This poll has already expired.',
   METHOD_WARNING:

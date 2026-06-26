@@ -179,6 +179,7 @@ class Presence extends Base {
  * * **`embedded`**
  * * **`ps4`**
  * * **`ps5`**
+ * * **`meta_quest`**
  * @typedef {string} ActivityPlatform
  */
 

@@ -9,14 +9,18 @@ client.on('ready', async () => {
       question: {
         text: 'What is your favorite color?',
       },
-      answers: [{ text: 'Red', emoji: '🍎' }, { text: 'Green', emoji: '🥗' }, { text: 'Blue', emoji: '💙' }, { text: 'Yellow', emoji: '🟡' }],
+      answers: [
+        { text: 'Red', emoji: '🍎' },
+        { text: 'Green', emoji: '🥗' },
+        { text: 'Blue', emoji: '💙' },
+        { text: 'Yellow', emoji: '🟡' },
+      ],
       duration: 8,
       allowMultiselect: true,
     },
   });
 
   console.log(message.poll);
-  // Multi select
   await message.vote(1, 3);
 });
 
@@ -30,7 +34,6 @@ client.on('messagePollVoteRemove', (answer, userId) => {
 
 client.on('messageUpdate', async (_oldMessage, newMessage) => {
   if (!newMessage.poll) return;
-
   console.log('Poll was updated', newMessage.poll);
 });
 
