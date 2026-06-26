@@ -1,6 +1,5 @@
 'use strict';
 
-// No longer using 2captcha since the website no longer supports hCaptcha, which Discord uses.
 const Captcha = require('2captcha');
 const Discord = require('../src/index');
 

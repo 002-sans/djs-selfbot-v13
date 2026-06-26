@@ -21,7 +21,7 @@ client.on('ready', async () => {
     selfDeaf: true,
     selfVideo: false,
   });
-  // Leave voice
+
   setTimeout(() => {
     connection.disconnect();
   }, 5_000);

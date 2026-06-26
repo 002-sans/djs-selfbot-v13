@@ -41,10 +41,10 @@ await channel.sendSlash('450323683840491530', 'animal chat', 'bye')
 ### Code test
 
 ```js
-const { MessageAttachment } = require('discord.js-selfbot-v13')
-const fs = require('fs')
-const a = new MessageAttachment(fs.readFileSync('./wallpaper.jpg') , 'test.jpg') 
-await message.channel.sendSlash('718642000898818048', 'sauce', a)
+const { MessageAttachment } = require('../src/index');
+const fs = require('fs');
+const a = new MessageAttachment(fs.readFileSync('./wallpaper.jpg'), 'test.jpg');
+await message.channel.sendSlash('718642000898818048', 'sauce', a);
 ```
 
 ### Result
@@ -62,29 +62,27 @@ await message.channel.sendSlash('718642000898818048', 'sauce', a)
 
 ### Code
 ```js
-	const channel = client.channels.cache.get('channel_id');
-	const response = await channel.sendSlash(
-		'bot_id',
-		'image make',
-		'MeinaMix - v11',
-		'Phone (9:16) [576x1024 | 810x1440]',
-		'2', // String choices, not number
-		undefined, // VAE
-		undefined, // sdxl_refiner
-		undefined, // sampling_method,
-		30,
-	);
-	// Submit Modal
-	if (!response.isMessage) { // Modal
-		response.components[0].components[0].setValue(
-			'1girl, brown hair, green eyes, colorful, autumn, cumulonimbus clouds',
-		);
-		response.components[1].components[0].setValue(
-			'(worst quality:1.4), (low quality:1.4), (normal quality:1.4), (ugly:1.4), (bad anatomy:1.4), (extra limbs:1.2), (text, error, signature, watermark:1.2), (bad legs, incomplete legs), (bad feet), (bad arms), (bad hands, too many hands, mutated hands), (zombie, sketch, interlocked fingers, comic, morbid), cropped, long neck, lowres, missing fingers, missing arms, missing legs, extra fingers, extra digit, fewer digits, jpeg artifacts',
-		);
-		await response.reply();
-	}
-
+const channel = client.channels.cache.get('channel_id');
+const response = await channel.sendSlash(
+  'bot_id',
+  'image make',
+  'MeinaMix - v11',
+  'Phone (9:16) [576x1024 | 810x1440]',
+  '2',
+  undefined,
+  undefined,
+  undefined,
+  30,
+);
+if (!response.isMessage) {
+  response.components[0].components[0].setValue(
+    '1girl, brown hair, green eyes, colorful, autumn, cumulonimbus clouds',
+  );
+  response.components[1].components[0].setValue(
+    '(worst quality:1.4), (low quality:1.4), (normal quality:1.4), (ugly:1.4), (bad anatomy:1.4), (extra limbs:1.2), (text, error, signature, watermark:1.2), (bad legs, incomplete legs), (bad feet), (bad arms), (bad hands, too many hands, mutated hands), (zombie, sketch, interlocked fingers, comic, morbid), cropped, long neck, lowres, missing fingers, missing arms, missing legs, extra fingers, extra digit, fewer digits, jpeg artifacts',
+  );
+  await response.reply();
+}
 ```
 
 ### Receive messages after bot has replied `{botname} is thinking...`
@@ -96,34 +94,33 @@ await message.channel.sendSlash('718642000898818048', 'sauce', a)
 ```js
 const channel = client.channels.cache.get('id');
 channel
-    .sendSlash('289066747443675143', 'osu', 'Accolibed')
-    .then(async (message) => {
-        if (message.flags.has('LOADING')) { // owo is thinking...
-            return new Promise((resolve, reject) => {
-                let done = false;
-                const timeout = setTimeout(() => {
-                    if (!done) {
-                        done = true;
-                        client.off('messageUpdate', onUpdate);
-                        reject('timeout');
-                    }
-                }, 15 * 60 * 1000);  // 15m (DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE)
+  .sendSlash('289066747443675143', 'osu', 'Accolibed')
+  .then(async message => {
+    if (message.flags.has('LOADING')) {
+      return new Promise((resolve, reject) => {
+        let done = false;
+        const timeout = setTimeout(() => {
+          if (!done) {
+            done = true;
+            client.off('messageUpdate', onUpdate);
+            reject('timeout');
+          }
+        }, 15 * 60 * 1000);
 
-                function onUpdate(_, m) {
-                    if (_.id === message.id) {
-                        if (!done) {
-                            done = true;
-                            clearTimeout(timeout);
-                            client.off('messageUpdate', onUpdate);
-                            resolve(m);
-                        }
-                    }
-                }
-                client.on('messageUpdate', onUpdate);
-            });
-        } else {
-            return Promise.resolve(message);
+        function onUpdate(_, m) {
+          if (_.id === message.id) {
+            if (!done) {
+              done = true;
+              clearTimeout(timeout);
+              client.off('messageUpdate', onUpdate);
+              resolve(m);
+            }
+          }
         }
-    })
-    .then(console.log);
+        client.on('messageUpdate', onUpdate);
+      });
+    }
+    return Promise.resolve(message);
+  })
+  .then(console.log);
 ```

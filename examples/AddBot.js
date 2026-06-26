@@ -1,6 +1,5 @@
 'use strict';
 
-// No longer using 2captcha since the website no longer supports hCaptcha, which Discord uses.
 const Captcha = require('2captcha');
 const Discord = require('../src/index');
 
@@ -21,11 +20,8 @@ const client = new Discord.Client({
 
 client.on('ready', async () => {
   console.log('Ready!', client.user.tag);
-  // Note
-  // You need to include `guild_id` to invite the bot
-  // These two fields can appear either in the URL or in the options.
   await client.authorizeURL(
-    `https://discord.com/api/oauth2/authorize?client_id=289066747443675143&permissions=414501424448&scope=bot%20applications.commands`,
+    'https://discord.com/api/oauth2/authorize?client_id=289066747443675143&permissions=414501424448&scope=bot%20applications.commands',
     {
       guild_id: 'guild id',
     },

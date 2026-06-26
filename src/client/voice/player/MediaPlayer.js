@@ -214,7 +214,9 @@ class MediaPlayer extends EventEmitter {
       args.push(...FFMPEG_H265_ARGUMENTS(options));
     }
 
-    args.push('-force_key_frames', '00:02');
+    if (options?.fps) {
+      args.push('-g', String(options.fps), '-keyint_min', String(options.fps), '-sc_threshold', '0');
+    }
 
     if (options?.inputFFmpegArgs) {
       args.unshift(...options.inputFFmpegArgs);

@@ -105,6 +105,13 @@ class VoiceChannel extends BaseGuildVoiceChannel {
    * @param {string} [reason] Reason for changing the camera video quality mode.
    * @returns {Promise<VoiceChannel>}
    */
+
+  /**
+   * Sets the status of the voice channel.
+   * @name VoiceChannel#setStatus
+   * @param {?string} status The new status (max 500 characters). Set to `null` to remove the status
+   * @returns {Promise<VoiceChannel>}
+   */
 }
 
 module.exports = VoiceChannel;

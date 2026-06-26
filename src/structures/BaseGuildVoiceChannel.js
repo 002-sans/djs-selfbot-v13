@@ -198,6 +198,7 @@ class BaseGuildVoiceChannel extends GuildChannel {
     return this.edit({ rtcRegion }, reason);
   }
 
+
   /**
    * Sets the user limit of the channel.
    * @param {number} userLimit The new user limit
@@ -223,17 +224,30 @@ class BaseGuildVoiceChannel extends GuildChannel {
     return this.edit({ videoQualityMode }, reason);
   }
 
-  // These are here only for documentation purposes - they are implemented by TextBasedChannel
-  /* eslint-disable no-empty-function */
-  get lastMessage() {}
-  send() {}
-  sendTyping() {}
-  createMessageCollector() {}
-  awaitMessages() {}
-  fetchWebhooks() {}
-  createWebhook() {}
-  setRateLimitPerUser() {}
-  setNSFW() {}
+  /**
+   * Sets the status of the voice channel.
+   * @param {?string} status The new status (max 500 characters). Set to `null` to remove the status
+   * @returns {Promise<BaseGuildVoiceChannel>}
+   * @example
+   * // Set the status of a voice channel
+   * voiceChannel.setStatus('Hello!')
+   *   .then(channel => console.log(`Set status to ${channel.status} for ${channel.name}`))
+   *   .catch(console.error);
+   * @example
+   * // Remove the status of a voice channel
+   * voiceChannel.setStatus(null);
+   */
+  setStatus(status) {
+    return this.client.api.channels(this.id, 'voice-status').put({
+      data: {
+        status,
+      },
+    }).then(() => {
+      this.status = status;
+      return this;
+    });
+  }
+
 }
 
 TextBasedChannel.applyToClass(BaseGuildVoiceChannel, true, ['lastPinAt']);

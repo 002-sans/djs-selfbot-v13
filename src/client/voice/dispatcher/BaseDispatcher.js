@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const { Writable } = require('node:stream');
 const { setTimeout } = require('node:timers');
 const secretbox = require('../util/Secretbox');
+const Speaking = require('../../../util/Speaking');
 
 const MAX_UINT_16 = 2 ** 16 - 1;
 const MAX_UINT_32 = 2 ** 32 - 1;
@@ -232,14 +233,16 @@ class BaseDispatcher extends Writable {
     callback();
   }
 
-  _playChunk(chunk, isLastPacket = false) {
+  _playChunk(chunk, isLastPacket = false, packetOpts = {}) {
     if (
       (this.player.dispatcher !== this && this.player.videoDispatcher !== this) ||
       !this.player.voiceConnection.authentication.secret_key
     ) {
       return;
     }
+    this._packetOpts = packetOpts;
     const packet = this._createPacket(chunk, isLastPacket);
+    this._packetOpts = null;
     if (packet) this._sendPacket(packet);
   }
 
@@ -375,7 +378,9 @@ class BaseDispatcher extends Writable {
     rtpHeader[0] = 0x80; // Version + Flags (1 byte)
     rtpHeader[1] = this.payloadType; // Payload Type (1 byte)
     if (this.extensionEnabled) {
-      rtpHeader = Buffer.concat([rtpHeader, this.createHeaderExtension()]);
+      const extensionWordCount =
+        typeof this.getExtensionWordCount === 'function' ? this.getExtensionWordCount(isLastPacket) : 1;
+      rtpHeader = Buffer.concat([rtpHeader, this.createHeaderExtension(extensionWordCount)]);
       rtpHeader[0] |= 1 << 4; // 0x90
     }
     if (this.getTypeDispatcher() === 'video' && isLastPacket) {
@@ -384,12 +389,11 @@ class BaseDispatcher extends Writable {
 
     rtpHeader.writeUIntBE(this.getNewSequence(), 2, 2);
     rtpHeader.writeUIntBE(this.timestamp, 4, 4);
-    rtpHeader.writeUIntBE(
-      this.player.voiceConnection.authentication.ssrc + Number(this.getTypeDispatcher() === 'video'),
-      8,
-      4,
-    );
-    return Buffer.concat([rtpHeader, ...this._encrypt(buffer, rtpHeader)]);
+    const { audioSsrc, videoSsrc } = this.player.voiceConnection.getStreamSsrcs();
+    rtpHeader.writeUIntBE(this.getTypeDispatcher() === 'video' ? videoSsrc : audioSsrc, 8, 4);
+    const dave = this.player.voiceConnection.dave;
+    const payload = this.getTypeDispatcher() === 'audio' && dave?.session?.ready ? dave.encrypt(buffer) : buffer;
+    return Buffer.concat([rtpHeader, ...this._encrypt(payload, rtpHeader)]);
   }
 
   _sendPacket(packet) {
@@ -399,7 +403,7 @@ class BaseDispatcher extends Writable {
      * @param {string} info The debug info
      */
     if (this.getTypeDispatcher() === 'audio') {
-      this._setSpeaking(this.player.isScreenSharing ? 1 << 1 : 1 << 0); // 1 << 0 = SPEAKING, 1 << 1 = SOUND SHARE
+      this._setSpeaking(this.player.isScreenSharing ? Speaking.FLAGS.SOUNDSHARE : Speaking.FLAGS.SPEAKING);
     } else if (this.getTypeDispatcher() === 'video') {
       this._setVideoStatus(true);
       this._setStreamStatus(false);

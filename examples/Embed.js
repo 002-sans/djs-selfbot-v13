@@ -6,7 +6,7 @@ client.on('ready', async () => {
 });
 
 client.on('messageCreate', message => {
-  if (message.content == 'embed_hidden_url') {
+  if (message.content === 'embed_hidden_url') {
     const embed = new WebEmbed()
       .setAuthor({ name: 'hello', url: 'https://google.com' })
       .setColor('RED')
@@ -21,7 +21,8 @@ client.on('messageCreate', message => {
       content: `Hello world ${WebEmbed.hiddenEmbed}${embed}`,
     });
   }
-  if (message.content == 'embed') {
+
+  if (message.content === 'embed') {
     const embed = new WebEmbed()
       .setAuthor({ name: 'hello', url: 'https://google.com' })
       .setColor('RED')

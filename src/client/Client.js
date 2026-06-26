@@ -9,8 +9,10 @@ const { authenticator } = require('otplib');
 const BaseClient = require('./BaseClient');
 const ActionsManager = require('./actions/ActionsManager');
 const ClientVoiceManager = require('./voice/ClientVoiceManager');
+const StreamSession = require('./voice/StreamSession');
 const WebSocketManager = require('./websocket/WebSocketManager');
 const { Error, TypeError } = require('../errors');
+const ClientProperties = require('../util/ClientProperties');
 const BaseGuildEmojiManager = require('../managers/BaseGuildEmojiManager');
 const BillingManager = require('../managers/BillingManager');
 const ChannelManager = require('../managers/ChannelManager');
@@ -18,6 +20,7 @@ const ClientUserSettingManager = require('../managers/ClientUserSettingManager')
 const DeveloperManager = require('../managers/DeveloperManager');
 const GuildManager = require('../managers/GuildManager');
 const PresenceManager = require('../managers/PresenceManager');
+const BackupManager = require('../managers/BackupManager');
 const QuestManager = require('../managers/QuestManager');
 const RelationshipManager = require('../managers/RelationshipManager');
 const SessionManager = require('../managers/SessionManager');
@@ -35,7 +38,7 @@ const VoiceRegion = require('../structures/VoiceRegion');
 const Webhook = require('../structures/Webhook');
 const Widget = require('../structures/Widget');
 const Application = require('../structures/interfaces/Application');
-const { Events, Status } = require('../util/Constants');
+const { Events, Status, VoiceStatus } = require('../util/Constants');
 const DataResolver = require('../util/DataResolver');
 const Intents = require('../util/Intents');
 const DiscordAuthWebsocket = require('../util/RemoteAuth');
@@ -173,6 +176,12 @@ class Client extends BaseClient {
     this.quests = new QuestManager(this);
 
     /**
+     * Manages guild backup operations
+     * @type {BackupManager}
+     */
+    this.backups = new BackupManager(this);
+
+    /**
      * All of the sessions of the client
      * @type {SessionManager}
      */
@@ -296,6 +305,9 @@ class Client extends BaseClient {
     }
 
     this.emit(Events.DEBUG, 'Preparing to connect to the gateway...');
+
+    await ClientProperties.awaitLatest(this.options.ws?.properties?.release_channel);
+    ClientProperties.applyToClientOptions(this.options);
 
     try {
       await this.ws.connect();
@@ -886,6 +898,94 @@ class Client extends BaseClient {
       }
       return results;
     });
+  }
+
+  /**
+   * Joins a voice channel, starts a screenshare stream and plays a video.
+   * @param {StartStreamOptions} options Stream options
+   * @returns {Promise<WebRtcStreamSession>}
+   * @example
+   * const stream = await client.startStream({
+   *   guildId: '123',
+   *   channelId: '456',
+   *   url: 'video.mp4',
+   *   fps: 60,
+   *   height: 720,
+   *   bitrate: 4500,
+   * });
+   * stream.pause();
+   * stream.resume();
+   * stream.stop();
+   * stream.replay();
+   * stream.disconnect();
+   */
+  async startStream(options = {}) {
+    const {
+      guildId,
+      channelId,
+      url,
+      fps,
+      height,
+      width,
+      bitrate = 5000,
+      bitrateMax,
+      audioBitrate,
+      preset,
+      tune,
+      audio,
+      livestream = false,
+      downloadHttp = true,
+      encoder,
+      hardwareAcceleratedDecoding,
+      nvencPreset,
+      preEncode,
+      goLive,
+    } = options;
+
+    if (!url) throw new Error('STREAM_URL_REQUIRED');
+    if (!guildId || !channelId) throw new Error('STREAM_CHANNEL_REQUIRED');
+
+    let playUrl = url;
+    if (typeof url === 'string' && url.startsWith('http') && downloadHttp) {
+      playUrl = await StreamSession.resolveUrl(url);
+    }
+
+    let WebRtcStreamSession;
+    try {
+      WebRtcStreamSession = require('./voice/WebRtcStreamSession');
+    } catch (error) {
+      if (error?.code === 'MODULE_NOT_FOUND' && String(error.message).includes('node_datachannel')) {
+        throw new Error(
+          'STREAM_NATIVE_MODULE_MISSING: @lng2004/node-datachannel failed to build. ' +
+            'Install build tools (build-essential python3 cmake) then run: npm rebuild @lng2004/node-datachannel',
+        );
+      }
+      throw error;
+    }
+
+    const session = new WebRtcStreamSession(this, {
+      guildId,
+      channelId,
+      url: playUrl,
+      fps,
+      height,
+      width,
+      bitrate,
+      bitrateMax,
+      audioBitrate,
+      preset,
+      tune,
+      audio,
+      livestream,
+      encoder,
+      hardwareAcceleratedDecoding,
+      nvencPreset,
+      preEncode,
+      goLive,
+    });
+
+    await session.start();
+    return session;
   }
 
   /**

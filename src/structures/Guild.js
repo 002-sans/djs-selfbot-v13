@@ -15,6 +15,7 @@ const GuildBanManager = require('../managers/GuildBanManager');
 const GuildChannelManager = require('../managers/GuildChannelManager');
 const GuildEmojiManager = require('../managers/GuildEmojiManager');
 const GuildInviteManager = require('../managers/GuildInviteManager');
+const GuildJoinRequestManager = require('../managers/GuildJoinRequestManager');
 const GuildMemberManager = require('../managers/GuildMemberManager');
 const GuildScheduledEventManager = require('../managers/GuildScheduledEventManager');
 const GuildSettingManager = require('../managers/GuildSettingManager');
@@ -123,6 +124,12 @@ class Guild extends AnonymousGuild {
      * @type {GuildSettingManager}
      */
     this.settings = new GuildSettingManager(this);
+
+    /**
+     * A manager of the join requests of this guild
+     * @type {GuildJoinRequestManager}
+     */
+    this.demandes = new GuildJoinRequestManager(this);
 
     if (!data) return;
     if (data.unavailable) {
@@ -1746,13 +1753,54 @@ class Guild extends AnonymousGuild {
 
     const data = await this.client.api.guilds(this.id).messages.search.get({ query });
     
-    if (limit && data.messages) {
-      // data.messages est souvent un tableau de tableaux dans l'API search
+    if (limit && data.messages) 
       data.messages = data.messages.flat().slice(0, limit);
-    }
     
     return data;
   }
+
+  /**
+   * Get the number of members that would be pruned
+   * @param {number} [days=7] Number of days of inactivity
+   * @param {string[]} [includeRoles=[]] Role IDs to include in the prune
+   * @returns {Promise<number>} The number of members that would be pruned
+   */
+  async pruneCount(days = 7, includeRoles = []) {
+      const query = { days };
+  
+      if (includeRoles.length > 0) {
+          query.include_roles = includeRoles.join('&include_roles=');
+      }
+  
+      const params = new URLSearchParams({ days: days.toString() });
+      if (includeRoles.length > 0) {
+          for (const roleId of includeRoles) {
+              params.append('include_roles', roleId);
+          }
+      }
+  
+      const data = await this.client.api.guilds(this.id)['prune/v2'].get({ query: Object.fromEntries(params) });
+      return data.pruned;
+  }
+  
+  /**
+   * Prune inactive members from the guild
+   * @param {number} [days=7] Number of days of inactivity
+   * @param {string[]} [includeRoles=[]] Role IDs to include in the prune
+   * @param {boolean} [computePruneCount=false] Whether to return the number of pruned members
+   * @returns {Promise<number|null>} The number of pruned members, or null if computePruneCount is false
+   */
+  async pruneMembers(days = 7, includeRoles = [], computePruneCount = false) {
+      const data = await this.client.api.guilds(this.id).prune.post({
+          data: {
+              days,
+              compute_prune_count: computePruneCount,
+              include_roles: includeRoles
+          }
+      });
+      return data.pruned ?? null;
+  }
+ 
 
   /**
    * Creates a collection of this guild's roles, sorted by their position and ids.

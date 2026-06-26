@@ -606,6 +606,15 @@ class Message extends Base {
    * @readonly
    */
   get editable() {
+    const permissions = this.channel?.permissionsFor(this.client.user);
+    if (!permissions) return false;
+
+    const hasPermission = this.channel?.isThread?.()
+      ? permissions.has(Permissions.FLAGS.SEND_MESSAGES_IN_THREADS, false)
+      : permissions.has(Permissions.FLAGS.SEND_MESSAGES, false);
+
+    if (!hasPermission) return false;
+
     const precheck = Boolean(
       this.author.id === this.client.user.id &&
         !deletedMessages.has(this) &&
@@ -618,7 +627,6 @@ class Message extends Base {
     if (this.channel?.isThread()) {
       if (this.channel.archived) return false;
       if (this.channel.locked) {
-        const permissions = this.channel.permissionsFor(this.client.user);
         if (!permissions?.has(Permissions.FLAGS.MANAGE_THREADS, true)) return false;
       }
     }

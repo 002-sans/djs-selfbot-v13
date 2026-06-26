@@ -158,6 +158,59 @@ class DMChannel extends Channel {
   }
 
   /**
+ * Search for messages in this DM/Group channel
+ * @param {Object} [options] Search options
+ * @param {string} [options.authorId] Filter by author ID
+ * @param {string[]} [options.has] Filter by attachment type ('image', 'video', 'file', 'sticker', 'embed', 'link')
+ * @param {boolean} [options.pinned] Filter pinned messages only
+ * @param {string} [options.sortBy='timestamp'] Sort by ('timestamp' or 'relevance')
+ * @param {string} [options.sortOrder='desc'] Sort order ('asc' or 'desc')
+ * @param {number} [options.offset=0] Pagination offset
+ * @param {number} [options.limit] Max number of messages to return
+ * @param {Date|number} [options.maxTime] Only return messages before this date
+ * @returns {Promise<Object>}
+ */
+  async search(options = {}) {
+    const {
+      authorId,
+      has = [],
+      pinned,
+      sortBy = 'timestamp',
+      sortOrder = 'desc',
+      offset = 0,
+      limit,
+      maxTime,
+    } = options;
+
+    const query = {
+      sort_by: sortBy,
+      sort_order: sortOrder,
+      offset,
+    };
+
+    if (authorId) query.author_id = authorId;
+    if (pinned) query.pinned = true;
+
+    if (maxTime) {
+      const time = new Date(maxTime).getTime();
+      const maxId = (BigInt(time) - 1420070400000n) << 22n;
+      query.max_id = maxId.toString();
+    }
+
+    for (const hasType of has) {
+      if (!query.has) query.has = [];
+      query.has.push(hasType);
+    }
+
+    const data = await this.client.api.channels(this.id).messages.search.get({ query });
+
+    if (limit && data.messages)
+      data.messages = data.messages.flat().slice(0, limit);
+
+    return data;
+  }
+
+  /**
    * The user in this voice-based channel
    * @type {Collection<Snowflake, User>}
    * @readonly
@@ -204,12 +257,12 @@ class DMChannel extends Channel {
 
   // These are here only for documentation purposes - they are implemented by TextBasedChannel
   /* eslint-disable no-empty-function */
-  get lastMessage() {}
-  get lastPinAt() {}
-  send() {}
-  sendTyping() {}
-  createMessageCollector() {}
-  awaitMessages() {}
+  get lastMessage() { }
+  get lastPinAt() { }
+  send() { }
+  sendTyping() { }
+  createMessageCollector() { }
+  awaitMessages() { }
   // Doesn't work on DM channels; setRateLimitPerUser() {}
   // Doesn't work on DM channels; setNSFW() {}
 }
