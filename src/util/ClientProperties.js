@@ -5,10 +5,10 @@ const { request } = require('undici');
 const { UserAgent } = require('./Constants');
 
 const FALLBACK_WS_PROPERTIES = {
-  client_version: '1.0.9215',
-  client_build_number: 521_835,
-  native_build_number: 72_186,
-  browser_version: '146.0.0.0',
+  client_version: '1.0.9248',
+  client_build_number: 86598,
+  native_build_number: 86598,
+  browser_version: '138.0.7204.251',
 };
 
 const RELEASE_CHANNEL_HOSTS = {
