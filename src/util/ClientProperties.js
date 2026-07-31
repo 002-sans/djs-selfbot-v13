@@ -5,10 +5,22 @@ const { request } = require('undici');
 const { UserAgent } = require('./Constants');
 
 const FALLBACK_WS_PROPERTIES = {
-  client_version: '1.0.9215',
-  client_build_number: 521_835,
-  native_build_number: 72_186,
-  browser_version: '146.0.0.0',
+  os: 'Windows',
+  browser: 'Discord Client',
+  release_channel: 'stable',
+  client_version: '1.0.9236',
+  os_version: '10.0.19045',
+  os_arch: 'x64',
+  app_arch: 'x64',
+  system_locale: 'en-US',
+  has_client_mods: false,
+  browser_user_agent: UserAgent,
+  browser_version: '37.6.0',
+  os_sdk_version: '19045',
+  client_build_number: 539_951,
+  native_build_number: 81_687,
+  client_event_source: null,
+  client_app_state: 'focused',
 };
 
 const RELEASE_CHANNEL_HOSTS = {
@@ -35,27 +47,46 @@ function hostVersionToClientVersion(hostVersion) {
 }
 
 async function fetchClientBuildNumber(releaseChannel = 'stable') {
-  const host = getReleaseHost(releaseChannel);
-  const response = await request(`https://${host}/app`, {
-    headers: { 'User-Agent': UserAgent },
-  });
-  const html = await response.body.text();
-  const scripts = [...html.matchAll(/<script[^>]*src="([^"]+)"/g)].map(match => match[1]);
-  const prioritizedScripts = [
-    ...scripts.filter(script => script.includes('/assets/web.')),
-    ...scripts.slice().reverse(),
-  ];
-
-  for (const script of prioritizedScripts) {
-    const assetResponse = await request(`https://${host}${script}`, {
+  try {
+    const host = getReleaseHost(releaseChannel);
+    const response = await request(`https://${host}/app`, {
       headers: { 'User-Agent': UserAgent },
     });
-    const source = await assetResponse.body.text();
-    const match = source.match(/Build Number: (\d+)/);
-    if (match) return Number(match[1]);
+    const html = await response.body.text();
+
+    const scriptMatches = [
+      ...html.matchAll(/\/assets\/web\.([a-f0-9]+)\.js/g),
+      ...html.matchAll(/<script[^>]*src="([^"]+)"/g),
+    ].map(match => match[1] || match[0]);
+
+    const prioritizedScripts = Array.from(new Set(scriptMatches));
+
+    for (const script of prioritizedScripts) {
+      const scriptUrl = script.startsWith('http')
+        ? script
+        : `https://${host}${script.startsWith('/') ? '' : '/'}${script}`;
+
+      try {
+        const assetResponse = await request(scriptUrl, {
+          headers: { 'User-Agent': UserAgent },
+        });
+        const source = await assetResponse.body.text();
+        const match =
+          source.match(/buildNumber["\s:]+["\s]*(\d{5,7})/i) ||
+          source.match(/Build Number: (\d+)/i) ||
+          source.match(/build_number["\s:]+["\s]*(\d{5,7})/i) ||
+          source.match(/client_build_number["\s:]+["\s]*(\d{5,7})/i);
+
+        if (match) return Number(match[1]);
+      } catch {
+        continue;
+      }
+    }
+  } catch {
+    // Ignore network errors and fallback
   }
 
-  throw new Error('CLIENT_BUILD_NUMBER_NOT_FOUND');
+  return FALLBACK_WS_PROPERTIES.client_build_number;
 }
 
 async function fetchDesktopManifest(releaseChannel = 'stable') {

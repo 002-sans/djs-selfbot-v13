@@ -9,7 +9,6 @@ const { authenticator } = require('otplib');
 const BaseClient = require('./BaseClient');
 const ActionsManager = require('./actions/ActionsManager');
 const ClientVoiceManager = require('./voice/ClientVoiceManager');
-const StreamSession = require('./voice/StreamSession');
 const WebSocketManager = require('./websocket/WebSocketManager');
 const { Error, TypeError } = require('../errors');
 const ClientProperties = require('../util/ClientProperties');
@@ -901,91 +900,13 @@ class Client extends BaseClient {
   }
 
   /**
-   * Joins a voice channel, starts a screenshare stream and plays a video.
-   * @param {StartStreamOptions} options Stream options
-   * @returns {Promise<WebRtcStreamSession>}
-   * @example
-   * const stream = await client.startStream({
-   *   guildId: '123',
-   *   channelId: '456',
-   *   url: 'video.mp4',
-   *   fps: 60,
-   *   height: 720,
-   *   bitrate: 4500,
-   * });
-   * stream.pause();
-   * stream.resume();
-   * stream.stop();
-   * stream.replay();
-   * stream.disconnect();
+   * Fetch all quests for the logged-in user
+   * @param {boolean} [fetchExcludedQuests=false] Whether to fetch excluded quest details
+   * @returns {Promise<QuestManager>}
    */
-  async startStream(options = {}) {
-    const {
-      guildId,
-      channelId,
-      url,
-      fps,
-      height,
-      width,
-      bitrate = 5000,
-      bitrateMax,
-      audioBitrate,
-      preset,
-      tune,
-      audio,
-      livestream = false,
-      downloadHttp = true,
-      encoder,
-      hardwareAcceleratedDecoding,
-      nvencPreset,
-      preEncode,
-      goLive,
-    } = options;
-
-    if (!url) throw new Error('STREAM_URL_REQUIRED');
-    if (!guildId || !channelId) throw new Error('STREAM_CHANNEL_REQUIRED');
-
-    let playUrl = url;
-    if (typeof url === 'string' && url.startsWith('http') && downloadHttp) {
-      playUrl = await StreamSession.resolveUrl(url);
-    }
-
-    let WebRtcStreamSession;
-    try {
-      WebRtcStreamSession = require('./voice/WebRtcStreamSession');
-    } catch (error) {
-      if (error?.code === 'MODULE_NOT_FOUND' && String(error.message).includes('node_datachannel')) {
-        throw new Error(
-          'STREAM_NATIVE_MODULE_MISSING: @lng2004/node-datachannel failed to build. ' +
-            'Install build tools (build-essential python3 cmake) then run: npm rebuild @lng2004/node-datachannel',
-        );
-      }
-      throw error;
-    }
-
-    const session = new WebRtcStreamSession(this, {
-      guildId,
-      channelId,
-      url: playUrl,
-      fps,
-      height,
-      width,
-      bitrate,
-      bitrateMax,
-      audioBitrate,
-      preset,
-      tune,
-      audio,
-      livestream,
-      encoder,
-      hardwareAcceleratedDecoding,
-      nvencPreset,
-      preEncode,
-      goLive,
-    });
-
-    await session.start();
-    return session;
+  async fetchQuests(fetchExcludedQuests = false) {
+    await this.quests.fetchQuests(fetchExcludedQuests);
+    return this.quests;
   }
 
   /**

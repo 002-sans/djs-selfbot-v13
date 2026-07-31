@@ -201,7 +201,8 @@ class ClientUserSettingManager extends BaseManager {
         activities.push(custom);
       }
       this.client.emit('debug', '[SETTING > ClientUser] Sync activities & status');
-      this.client.user.setPresence({ activities });
+      // presence.set direct : évite un re-PATCH REST via ClientUser#setPresence
+      this.client.presence.set({ activities, status: this.client.presence.status });
     }
     if ('friend_source_flags' in data) {
       // Todo

@@ -3,7 +3,7 @@
 const { randomUUID } = require('node:crypto');
 const { fetch } = require('undici');
 const { Collection } = require('@discordjs/collection');
-const WsVoiceSession = require('../client/voice/WsVoiceSession');
+const VoiceSession = require('../client/voice/VoiceSession');
 const BaseManager = require('./BaseManager');
 
 const TASK_TYPES = [
@@ -118,7 +118,7 @@ class QuestManager extends BaseManager {
    * @private
    */
   _getTaskConfig(quest) {
-    return quest.config.task_config_v2 ?? quest.config.task_config;
+    return quest?.config?.task_config_v2 ?? quest?.config?.task_config ?? quest?.task_config_v2 ?? quest?.task_config;
   }
 
   /**
@@ -157,7 +157,7 @@ class QuestManager extends BaseManager {
     if (client.options.questVoiceChannelId) {
       const channel = client.channels.cache.get(client.options.questVoiceChannelId);
       if (channel) {
-        return WsVoiceSession.getStreamKey(channel, client.user.id);
+        return VoiceSession.getStreamKey(channel, client.user.id);
       }
     }
 
@@ -243,8 +243,40 @@ class QuestManager extends BaseManager {
   }
 
   /**
-   * Get all available quests for the user
-   * @returns {Promise<Object>} Quest data
+   * Fetch all available quests for the user
+   * @param {boolean} [fetchExcludedQuests=false] Whether to fetch excluded quests details
+   * @returns {Promise<Collection<string, Quest>>} Collection of cached quests
+   */
+  async fetchQuests(fetchExcludedQuests = false) {
+    const data = await this.get();
+
+    if (fetchExcludedQuests && Array.isArray(data?.excluded_quests)) {
+      await Promise.all(
+        data.excluded_quests.map(async eq => {
+          if (!eq?.id) return;
+          try {
+            const questData = await this.client.api.quests(eq.id).get();
+            const quest = new Quest({
+              id: eq.id,
+              config: questData,
+              user_status: null,
+              targeted_content: 0,
+              preview: false,
+            });
+            this.cache.set(quest.id, quest);
+          } catch (err) {
+            console.error(`Failed to fetch excluded quest "${eq.id}":`, err);
+          }
+        }),
+      );
+    }
+
+    return this.cache;
+  }
+
+  /**
+   * Get all available quests for the user from API
+   * @returns {Promise<Object>} Quest API response data
    */
   async get() {
     const data = await this.client.api.quests('@me').get();
@@ -491,7 +523,7 @@ class QuestManager extends BaseManager {
     const maxFuture = 10;
     const speed = 7;
     const interval = 7;
-    const enrolledAt = new Date(quest.userStatus?.enrolled_at).getTime();
+    const enrolledAt = new Date(quest.userStatus?.enrolled_at ?? Date.now()).getTime();
     let completed = false;
 
     while (true) {
@@ -565,7 +597,7 @@ class QuestManager extends BaseManager {
     let streamKey = this._getActivityStreamKey();
 
     if (channelId) {
-      voice = await this.client.voice.joinWsVoice(channelId, {
+      voice = await this.client.voice.joinVoice(channelId, {
         mute: true,
         deaf: true,
         stream: true,
@@ -617,7 +649,7 @@ class QuestManager extends BaseManager {
     let voice;
 
     try {
-      voice = await this.client.voice.joinWsVoice(channelId, {
+      voice = await this.client.voice.joinVoice(channelId, {
         mute: true,
         deaf: true,
         video: false,
@@ -640,6 +672,30 @@ class QuestManager extends BaseManager {
     } finally {
       await voice?.disconnect().catch(() => null);
     }
+  }
+
+  /**
+   * Get proxy ticket for an application
+   * @param {string} applicationId Application ID
+   * @returns {Promise<string>}
+   */
+  async getProxyTicket(applicationId) {
+    const res = await this.client.api.applications(applicationId)['proxy-tickets'].post({ data: {} });
+    return res.ticket;
+  }
+
+  /**
+   * Get activity referrer for Discord Says
+   * @param {string} applicationId Application ID
+   * @returns {Promise<string>}
+   */
+  async getActivityReferrer(applicationId) {
+    const ticket = await this.getProxyTicket(applicationId);
+    const referrer = new URL(`https://${applicationId}.discordsays.com/`);
+    referrer.searchParams.set('instance_id', 'example-cl-instance');
+    referrer.searchParams.set('platform', 'desktop');
+    referrer.searchParams.set('discord_proxy_ticket', ticket);
+    return referrer.toString();
   }
 
   /**
@@ -687,9 +743,17 @@ class QuestManager extends BaseManager {
       throw new Error(`No auth code received for application ${applicationName}.`);
     }
 
+    const activityReferrer = await this.getActivityReferrer(applicationId).catch(() => undefined);
+
+    const authHeaders = {
+      'Content-Type': 'application/json',
+      'X-Discord-Quest-ID': quest.id,
+    };
+    if (activityReferrer) authHeaders.Referer = activityReferrer;
+
     const tokenResponse = await fetch(`https://${applicationId}.discordsays.com/.proxy/acf/authorize`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({ code: authCode }),
     }).then(res => res.json());
 
@@ -697,12 +761,16 @@ class QuestManager extends BaseManager {
       throw new Error(`Failed to authorize with Discord Says for application ${applicationName}.`);
     }
 
+    const progressHeaders = {
+      'Content-Type': 'application/json',
+      'X-Auth-Token': tokenResponse.token,
+      'X-Discord-Quest-ID': quest.id,
+    };
+    if (activityReferrer) progressHeaders.Referer = activityReferrer;
+
     const progressResponse = await fetch(`https://${applicationId}.discordsays.com/.proxy/acf/quest/progress`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-auth-token': tokenResponse.token,
-      },
+      headers: progressHeaders,
       body: JSON.stringify({ progress: questTarget }),
     });
 
@@ -721,24 +789,161 @@ class QuestManager extends BaseManager {
   }
 
   /**
-   * Complete a quest automatically
-   * @param {Quest} quest Quest to complete
-   * @returns {Promise<void>}
+   * Detect the category/type of a quest
+   * @param {Quest|Object} quest Quest instance or raw quest data
+   * @returns {string} 'VIDEO' | 'GAME' | 'STREAM' | 'ACTIVITY' | 'UNKNOWN'
    */
-  async doingQuest(quest) {
-    if (!(quest instanceof Quest)) {
+  detectQuestType(quest) {
+    if (!(quest instanceof Quest) && typeof quest === 'object' && quest !== null) {
       quest = new Quest(quest);
     }
 
-    const questName = quest.config.messages?.quest_name || 'Unknown Quest';
-    const isAndroid = this._isAndroidQuest(quest);
     const taskConfig = this._getTaskConfig(quest);
     const taskName = this._findTaskName(taskConfig);
 
-    if (!taskName) {
-      console.log(`Unknown task type for quest "${questName}"`);
-      return;
+    switch (taskName) {
+      case 'WATCH_VIDEO':
+      case 'WATCH_VIDEO_ON_MOBILE':
+        return 'VIDEO';
+
+      case 'PLAY_ON_XBOX':
+      case 'PLAY_ON_PLAYSTATION':
+      case 'PLAY_ON_DESKTOP':
+        return 'GAME';
+
+      case 'STREAM_ON_DESKTOP':
+        return 'STREAM';
+
+      case 'PLAY_ACTIVITY':
+      case 'ACHIEVEMENT_IN_ACTIVITY':
+        return 'ACTIVITY';
+
+      default:
+        return 'UNKNOWN';
     }
+  }
+
+  /**
+   * Complete a video quest
+   * @param {Quest|string} quest Quest instance or ID
+   * @param {string} [taskName] Task type name
+   * @param {number} [secondsNeeded] Target duration in seconds
+   * @param {number} [secondsDone] Progress in seconds
+   * @param {boolean} [isAndroid] Whether to send as Android client
+   * @returns {Promise<void>}
+   */
+  async completeVideoQuest(quest, taskName, secondsNeeded, secondsDone, isAndroid) {
+    if (typeof quest === 'string') {
+      quest = this.getQuest(quest);
+    }
+
+    if (!quest) return;
+
+    const taskConfig = this._getTaskConfig(quest);
+    taskName = taskName ?? this._findTaskName(taskConfig);
+    secondsNeeded = secondsNeeded ?? taskConfig?.tasks?.[taskName]?.target ?? 0;
+    secondsDone = secondsDone ?? quest.userStatus?.progress?.[taskName]?.value ?? 0;
+    isAndroid = isAndroid ?? this._isAndroidQuest(quest);
+
+    return this._doingWatchVideoQuest(quest, taskName, secondsNeeded, secondsDone, isAndroid);
+  }
+
+  /**
+   * Complete a game quest
+   * @param {Quest|string} quest Quest instance or ID
+   * @param {string} [taskName] Task type name
+   * @param {number} [secondsNeeded] Target duration in seconds
+   * @returns {Promise<void>}
+   */
+  async completeGameQuest(quest, taskName, secondsNeeded) {
+    if (typeof quest === 'string') {
+      quest = this.getQuest(quest);
+    }
+
+    if (!quest) return;
+
+    const taskConfig = this._getTaskConfig(quest);
+    taskName = taskName ?? this._findTaskName(taskConfig);
+    secondsNeeded = secondsNeeded ?? taskConfig?.tasks?.[taskName]?.target ?? 0;
+
+    return this._doingPlayOnPlatformQuest(quest, taskName, secondsNeeded);
+  }
+
+  /**
+   * Complete a stream quest
+   * @param {Quest|string} quest Quest instance or ID
+   * @param {string} [taskName] Task type name
+   * @param {number} [secondsNeeded] Target duration in seconds
+   * @returns {Promise<void>}
+   */
+  async completeStreamQuest(quest, taskName, secondsNeeded) {
+    if (typeof quest === 'string') {
+      quest = this.getQuest(quest);
+    }
+
+    if (!quest) return;
+
+    const taskConfig = this._getTaskConfig(quest);
+    taskName = taskName ?? this._findTaskName(taskConfig);
+    secondsNeeded = secondsNeeded ?? taskConfig?.tasks?.[taskName]?.target ?? 0;
+
+    return this._doingStreamOnDesktopQuest(quest, taskName, secondsNeeded);
+  }
+
+  /**
+   * Complete an activity quest
+   * @param {Quest|string} quest Quest instance or ID
+   * @param {string} [taskName] Task type name
+   * @param {number} [secondsNeeded] Target duration in seconds
+   * @returns {Promise<void>}
+   */
+  async completeActivityQuest(quest, taskName, secondsNeeded) {
+    if (typeof quest === 'string') {
+      quest = this.getQuest(quest);
+    }
+
+    if (!quest) return;
+
+    const taskConfig = this._getTaskConfig(quest);
+    taskName = taskName ?? this._findTaskName(taskConfig);
+    secondsNeeded = secondsNeeded ?? taskConfig?.tasks?.[taskName]?.target ?? 0;
+
+    if (taskName === 'ACHIEVEMENT_IN_ACTIVITY') {
+      return this._doingAchievementInActivityQuest(quest);
+    }
+
+    return this._doingPlayActivityQuest(quest, taskName, secondsNeeded);
+  }
+
+  /**
+   * Complete a single quest automatically based on its type
+   * @param {Quest|string} quest Quest instance or quest ID
+   * @returns {Promise<Quest>} Updated quest instance
+   */
+  async completeQuest(quest) {
+    if (typeof quest === 'string') {
+      quest = this.getQuest(quest) ?? new Quest({ id: quest, config: {}, user_status: null });
+    } else if (!(quest instanceof Quest) && typeof quest === 'object' && quest !== null) {
+      quest = new Quest(quest);
+    }
+
+    if (!quest || !quest.id) {
+      throw new Error('Invalid quest specified.');
+    }
+
+    const questName = quest.config?.messages?.quest_name || quest.id || 'Unknown Quest';
+
+    if (quest.isExpired()) {
+      console.log(`Quest "${questName}" is expired.`);
+      return quest;
+    }
+
+    if (quest.isCompleted()) {
+      console.log(`Quest "${questName}" is already completed.`);
+      return quest;
+    }
+
+    const isAndroid = this._isAndroidQuest(quest);
 
     if (!quest.isEnrolledQuest()) {
       try {
@@ -746,69 +951,89 @@ class QuestManager extends BaseManager {
         if (enrolledQuest) quest = enrolledQuest;
       } catch (error) {
         console.error(`Failed to enroll in quest "${questName}":`, error);
-        return;
+        throw error;
       }
     }
 
-    const secondsNeeded = taskConfig.tasks[taskName].target;
-    let secondsDone = quest.userStatus?.progress?.[taskName]?.value ?? 0;
+    const questType = this.detectQuestType(quest);
 
-    switch (taskName) {
-      case 'WATCH_VIDEO':
-      case 'WATCH_VIDEO_ON_MOBILE':
-        await this._doingWatchVideoQuest(quest, taskName, secondsNeeded, secondsDone, isAndroid);
+    switch (questType) {
+      case 'VIDEO':
+        await this.completeVideoQuest(quest);
         break;
 
-      case 'PLAY_ON_XBOX':
-      case 'PLAY_ON_PLAYSTATION':
-      case 'PLAY_ON_DESKTOP':
-        await this._doingPlayOnPlatformQuest(quest, taskName, secondsNeeded);
+      case 'GAME':
+        await this.completeGameQuest(quest);
         break;
 
-      case 'PLAY_ACTIVITY':
-        await this._doingPlayActivityQuest(quest, taskName, secondsNeeded);
+      case 'STREAM':
+        await this.completeStreamQuest(quest);
         break;
 
-      case 'ACHIEVEMENT_IN_ACTIVITY':
-        await this._doingAchievementInActivityQuest(quest);
-        break;
-
-      case 'STREAM_ON_DESKTOP':
-        await this._doingStreamOnDesktopQuest(quest, taskName, secondsNeeded);
+      case 'ACTIVITY':
+        await this.completeActivityQuest(quest);
         break;
 
       default:
-        console.log(`Unsupported task type "${taskName}" for quest "${questName}".`);
+        console.log(`Unsupported task type for quest "${questName}".`);
+        return quest;
     }
+
+    if (quest.isCompleted()) {
+      this.client.emit('questCompleted', quest);
+    }
+
+    return quest;
   }
 
   /**
-   * Auto-complete all valid quests
+   * Complete a quest automatically (alias for completeQuest)
+   * @param {Quest|string} quest Quest to complete
+   * @returns {Promise<Quest>}
+   */
+  async doingQuest(quest) {
+    return this.completeQuest(quest);
+  }
+
+  /**
+   * Auto-complete all valid quests in parallel
    * @param {Object} [options] Options
    * @param {boolean} [options.redeem=false] Whether to redeem rewards after completion
+   * @param {boolean} [options.fetchExcludedQuests=false] Whether to fetch excluded quests
    * @returns {Promise<void>}
    */
   async autoCompleteAll(options = {}) {
-    await this.get();
+    await this.fetchQuests(options.fetchExcludedQuests ?? false);
     const validQuests = this.filterQuestsValid();
 
-    for (const quest of validQuests) {
-      try {
-        await this.doingQuest(quest);
-      } catch (error) {
-        console.error(`Failed to complete quest ${quest.id}:`, error);
-      }
+    if (validQuests.length === 0) {
+      console.log('No valid quests to complete.');
+      return;
     }
 
-    if (options.redeem) {
-      await this.get();
-      for (const quest of this.filterQuestsValidToRedeem()) {
+    // Execute all valid quests simultaneously in parallel using Promise.all
+    await Promise.all(
+      validQuests.map(async quest => {
         try {
-          await this.redeemQuest(quest);
+          await this.completeQuest(quest);
         } catch (error) {
-          console.error(`Failed to redeem quest ${quest.id}:`, error);
+          console.error(`Failed to complete quest "${quest.config?.messages?.quest_name ?? quest.id}":`, error);
         }
-      }
+      }),
+    );
+
+    if (options.redeem) {
+      await this.fetchQuests(options.fetchExcludedQuests ?? false);
+      const redeemableQuests = this.filterQuestsValidToRedeem();
+      await Promise.all(
+        redeemableQuests.map(async quest => {
+          try {
+            await this.redeemQuest(quest);
+          } catch (error) {
+            console.error(`Failed to redeem quest "${quest.config?.messages?.quest_name ?? quest.id}":`, error);
+          }
+        }),
+      );
     }
   }
 

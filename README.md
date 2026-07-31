@@ -13,13 +13,13 @@
 - djs-selfbot-v13 is a [Node.js](https://nodejs.org) module that allows user accounts to interact with the Discord API v9.
 
 > [!IMPORTANT]
-> **This project is a fork of the [discord.js-selfbot-v13](https://github.com/aiko-chan-ai/discord.js-selfbot-v13) archived project.**
+> **This project is a fork of the [djs-selfbot-v13](https://github.com/002-sans/djs-selfbot-v13) project.**
 
 ---
 
 ## Nouveautés
 
-Comparé au module original [`discord.js-selfbot-v13`](https://github.com/aiko-chan-ai/discord.js-selfbot-v13) (v3.7.1), ce fork ajoute de nouvelles classes, managers, méthodes et options. Voici la liste exhaustive.
+Comparé au module original [`djs-selfbot-v13`](https://github.com/002-sans/djs-selfbot-v13), ce fork ajoute de nouvelles classes, managers, méthodes et options. Voici la liste exhaustive.
 
 ### Nouveaux exports (`src/index.js`)
 
