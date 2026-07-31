@@ -55,7 +55,7 @@ class APIRequest {
       'accept-language': 'en-US',
       priority: 'u=1, i',
       referer: 'https://discord.com/channels/@me',
-      'sec-ch-ua': '"Not:A-Brand";v="24", "Chromium";v="134"',
+      'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138"',
       'sec-ch-ua-mobile': '?0',
       'sec-ch-ua-platform': '"Windows"',
       'sec-fetch-dest': 'empty',

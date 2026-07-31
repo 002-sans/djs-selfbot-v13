@@ -876,6 +876,7 @@ export class Client<Ready extends boolean = boolean> extends BaseClient {
   public billing: BillingManager;
   public developers: DeveloperManager;
   public quests: QuestManager;
+  public fetchQuests(fetchExcludedQuests?: boolean): Promise<QuestManager>;
   public backups: BackupManager;
   public settings: ClientUserSettingManager;
   public readonly sessionId: If<Ready, string, undefined>;
@@ -919,7 +920,6 @@ export class Client<Ready extends boolean = boolean> extends BaseClient {
       }
     >
   >;
-  public startStream(options: StartStreamOptions): Promise<WebRtcStreamSession>;
 
   public on<K extends keyof ClientEvents>(event: K, listener: (...args: ClientEvents[K]) => Awaitable<void>): this;
   public on<S extends string | symbol>(
@@ -1045,12 +1045,12 @@ export class ClientUser extends User {
   public readonly presence: ClientPresence;
   public verified: boolean;
   public edit(data: ClientUserEditData): Promise<this>;
-  public setActivity(options?: ActivityOptions | RichPresence | SpotifyRPC | CustomStatus): ClientPresence;
-  public setActivity(name: string, options?: Omit<ActivityOptions, 'name'>): ClientPresence;
-  public setAFK(afk?: boolean, shardId?: number | number[]): ClientPresence;
+  public setActivity(options?: ActivityOptions | RichPresence | SpotifyRPC | CustomStatus): Promise<ClientPresence>;
+  public setActivity(name: string, options?: Omit<ActivityOptions, 'name'>): Promise<ClientPresence>;
+  public setAFK(afk?: boolean, shardId?: number | number[]): Promise<ClientPresence>;
   public setAvatar(avatar: BufferResolvable | Base64Resolvable | null): Promise<this>;
-  public setPresence(data: PresenceData): ClientPresence;
-  public setStatus(status: PresenceStatusData, shardId?: number | number[]): ClientPresence;
+  public setPresence(data: PresenceData): Promise<ClientPresence>;
+  public setStatus(status: PresenceStatusData, shardId?: number | number[]): Promise<ClientPresence>;
   public setUsername(username: string, password: string): Promise<this>;
   public purchasedFlags: Readonly<PurchasedFlags>;
   public premiumUsageFlags: Readonly<PremiumUsageFlags>;
@@ -1099,51 +1099,58 @@ export class ClientVoiceManager {
   public readonly client: Client;
   public adapters: Map<Snowflake, InternalDiscordGatewayAdapterLibraryMethods>;
   public connection: VoiceConnection | null;
-  public wsSession: WsVoiceSession | null;
+  public session: VoiceSession | null;
 
-  public joinChannel(
+  public joinVoice(
     channel: VoiceBasedChannel | DMChannel | GroupDMChannel | Snowflake,
-    config?: JoinChannelConfig,
-  ): Promise<VoiceConnection>;
-  public joinWsVoice(
-    channel: VoiceBasedChannel | DMChannel | GroupDMChannel | Snowflake,
-    options?: WsVoiceSessionOptions,
-  ): Promise<WsVoiceSession>;
+    data?: JoinVoiceData,
+  ): Promise<VoiceSession>;
 }
 
-export interface WsVoiceSessionOptions {
+export interface JoinVoiceData {
   mute?: boolean;
   deaf?: boolean;
   video?: boolean;
   stream?: boolean;
+  streamLink?: string | null;
+  videoLink?: string | null;
   selfMute?: boolean;
   selfDeaf?: boolean;
   selfVideo?: boolean;
   preferredRegion?: string | null;
   preferred_region?: string | null;
+  fps?: number;
+  height?: number;
+  width?: number;
+  bitrate?: number;
+  audioBitrate?: number;
+  audio?: boolean;
 }
 
-export class WsVoiceSession {
-  private constructor(voiceManager: ClientVoiceManager, channel: Channel, options?: WsVoiceSessionOptions);
+export class VoiceSession {
+  private constructor(voiceManager: ClientVoiceManager, channel: Channel, data?: JoinVoiceData);
   public readonly voiceManager: ClientVoiceManager;
   public readonly channel: VoiceChannel | StageChannel | DMChannel | GroupDMChannel;
   public readonly client: Client;
   public readonly streamKey: string;
   public readonly disconnected: boolean;
+  public readonly udp: boolean;
   public setMute(mute?: boolean): Promise<this>;
   public setDeaf(deaf?: boolean): Promise<this>;
-  public setVideo(video?: boolean): Promise<this>;
   public setStream(stream?: boolean): Promise<this>;
-  public edit(options?: WsVoiceSessionOptions): Promise<this>;
+  public setStreamLink(link: string | null): Promise<this>;
+  public setVideo(video?: boolean): Promise<this>;
+  public setVideoLink(link: string | null): Promise<this>;
+  public pauseStream(): this;
+  public unpauseStream(): this;
+  public streamTime(ms: number): this;
   public disconnect(): Promise<void>;
 }
 
-export interface JoinChannelConfig {
-  selfMute?: boolean;
-  selfDeaf?: boolean;
-  selfVideo?: boolean;
-  videoCodec?: VideoCodec;
-}
+/** @deprecated Use {@link VoiceSession} / {@link JoinVoiceData} */
+export type WsVoiceSessionOptions = JoinVoiceData;
+/** @deprecated Use {@link VoiceSession} */
+export type WsVoiceSession = VoiceSession;
 
 export type VideoCodec = 'VP8' | 'H264';
 
@@ -1222,71 +1229,6 @@ export class BaseDispatcher extends Writable {
   public once(event: 'pipe' | 'unpipe', listener: (src: Readable) => void): this;
   public once(event: 'speaking', listener: (speaking: boolean) => void): this;
   public once(event: string, listener: (...args: any[]) => void): this;
-}
-
-export interface StartStreamOptions {
-  guildId: Snowflake;
-  channelId: Snowflake;
-  url: string;
-  fps?: number;
-  height?: number;
-  width?: number;
-  bitrate?: number;
-  audioBitrate?: number;
-  videoCodec?: 'H264' | 'VP8';
-  preset?: string;
-  audio?: boolean;
-  /** Enable webcam. Default false (screenshare only). */
-  video?: boolean;
-  /** Download HTTP URLs locally before playback. Default true. */
-  downloadHttp?: boolean;
-  /** Max video bitrate in kbps. Default: bitrate * 1.5 */
-  bitrateMax?: number;
-  /** x264 tune (ex. film). */
-  tune?: string;
-  /** readrateInitialBurst pour sources live. */
-  livestream?: boolean;
-  /** Low-latency encoding and playback. Default true. */
-  lowLatency?: boolean;
-  /** Video encoder. Default 'auto' (NVENC if available). */
-  encoder?: 'auto' | 'amf' | 'nvenc' | 'qsv' | 'software';
-  /** GPU decoding via -hwaccel auto. Default true. */
-  hardwareAcceleratedDecoding?: boolean;
-  /** NVENC preset (p1 = lowest latency). Default 'p1'. */
-  nvencPreset?: string;
-  /** Pre-encode locally before playback for smooth speed. Default true. */
-  preEncode?: boolean;
-  /** WebRTC Go Live. Default false (UDP classic, more stable). */
-  goLive?: boolean;
-}
-
-/** Session Go Live WebRTC retournée par {@link Client#startStream}. */
-export class WebRtcStreamSession extends EventEmitter {
-  public readonly client: Client;
-  public pause(): void;
-  public resume(): Promise<void>;
-  public stop(): void;
-  public replay(): Promise<void>;
-  public disconnect(): void;
-  public on(event: 'finish', listener: () => void): this;
-  public on(event: 'debug', listener: (message: string) => void): this;
-  public on(event: 'error', listener: (error: Error) => void): this;
-  public once(event: 'finish', listener: () => void): this;
-  public once(event: 'debug', listener: (message: string) => void): this;
-  public once(event: 'error', listener: (error: Error) => void): this;
-}
-
-export class StreamSession extends EventEmitter {
-  public readonly client: Client;
-  public readonly voiceConnection: VoiceConnection;
-  public readonly streamConnection: StreamConnection;
-  public pause(): void;
-  public resume(): void;
-  public stop(): void;
-  public replay(): VideoDispatcher;
-  public disconnect(): void;
-  public on(event: 'finish', listener: () => void): this;
-  public once(event: 'finish', listener: () => void): this;
 }
 
 export class AudioDispatcher extends VolumeMixin(BaseDispatcher) {
@@ -2909,12 +2851,26 @@ export interface QuestVideoProgressOptions {
 
 export interface QuestAutoCompleteOptions {
   redeem?: boolean;
+  fetchExcludedQuests?: boolean;
 }
 
 export class QuestManager extends BaseManager {
   constructor(client: Client);
   public cache: Collection<string, Quest>;
   public get(): Promise<QuestData>;
+  public fetchQuests(fetchExcludedQuests?: boolean): Promise<Collection<string, Quest>>;
+  public detectQuestType(quest: Quest | any): 'VIDEO' | 'GAME' | 'STREAM' | 'ACTIVITY' | 'UNKNOWN';
+  public completeQuest(quest: Quest | string): Promise<Quest>;
+  public completeVideoQuest(
+    quest: Quest | string,
+    taskName?: string,
+    secondsNeeded?: number,
+    secondsDone?: number,
+    isAndroid?: boolean,
+  ): Promise<void>;
+  public completeGameQuest(quest: Quest | string, taskName?: string, secondsNeeded?: number): Promise<void>;
+  public completeStreamQuest(quest: Quest | string, taskName?: string, secondsNeeded?: number): Promise<void>;
+  public completeActivityQuest(quest: Quest | string, taskName?: string, secondsNeeded?: number): Promise<void>;
   public orbs(): Promise<OrbsData>;
   public getQuest(id: string): Quest | undefined;
   public list(): Quest[];
@@ -2929,7 +2885,7 @@ export class QuestManager extends BaseManager {
   public videoProgress(questId: string, timestamp: number, options?: QuestVideoProgressOptions): Promise<any>;
   public heartbeat(questId: string, applicationIdOrOptions: string | QuestHeartbeatOptions, terminal?: boolean): Promise<any>;
   public redeemQuest(quest: Quest | string): Promise<Quest | undefined>;
-  public doingQuest(quest: Quest): Promise<void>;
+  public doingQuest(quest: Quest | string): Promise<Quest>;
   public autoCompleteAll(options?: QuestAutoCompleteOptions): Promise<void>;
   public readonly size: number;
   public clear(): void;

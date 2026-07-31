@@ -709,10 +709,17 @@ class WebSocketShard extends EventEmitter {
         delete client.options.ws.properties[k];
       });
 
-    // Clone the identify payload and assign the token and shard info
+    // Clone the identify payload and assign token, properties, capabilities, client_state
     const d = {
       ...client.options.ws,
       token: client.token,
+      properties: {
+        ...client.options.ws.properties,
+        is_fast_connect: false,
+        gateway_connect_reasons: 'AppSkeleton',
+      },
+      capabilities: client.options.ws.capabilities ?? 30717,
+      client_state: client.options.ws.client_state ?? { guild_versions: {} },
     };
 
     delete d.version;

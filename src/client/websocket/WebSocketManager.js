@@ -9,6 +9,7 @@ const WebSocketShard = require('./WebSocketShard');
 const PacketHandlers = require('./handlers');
 const { Error } = require('../../errors');
 const { Events, ShardEvents, Status, WSCodes, WSEvents } = require('../../util/Constants');
+const ClientProperties = require('../../util/ClientProperties');
 
 const BeforeReadyWhitelist = [
   WSEvents.READY,
@@ -126,6 +127,13 @@ class WebSocketManager extends EventEmitter {
    * @private
    */
   async connect() {
+    try {
+      await ClientProperties.awaitLatest(this.client.options?.ws?.properties?.release_channel);
+      ClientProperties.applyToClientOptions(this.client.options);
+    } catch {
+      // Fallback to default properties if network is restricted
+    }
+
     let gatewayURL = 'wss://gateway.discord.gg';
     await this.client.api.gateway
       .get({ auth: false })

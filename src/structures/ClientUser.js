@@ -198,15 +198,46 @@ class ClientUser extends User {
 
   /**
    * Sets the full presence of the client user.
+   * If a {@link CustomStatus} is present in `activities`, also persists it via the settings REST API.
    * @param {PresenceData} data Data for the presence
-   * @returns {ClientPresence}
+   * @returns {Promise<ClientPresence>}
    * @example
    * // Set the client user's presence
-   * client.user.setPresence({ activities: [{ name: 'with discord.js' }], status: 'idle' });
+   * await client.user.setPresence({ activities: [{ name: 'with discord.js' }], status: 'idle' });
+   * @example
+   * // Custom status (gateway + REST persistence)
+   * await client.user.setPresence({
+   *   activities: [new CustomStatus(client).setState('Coding...').setEmoji('💻')],
+   * });
    * @see {@link https://github.com/aiko-chan-ai/djs-selfbot-v13/blob/main/Document/RichPresence.md}
    */
-  setPresence(data) {
-    return this.client.presence.set(data);
+  async setPresence(data) {
+    const presence = this.client.presence.set(data);
+
+    const { CustomStatus } = require('./Presence');
+    const { ActivityTypes } = require('../util/Constants');
+    const custom = data.activities?.find(
+      a =>
+        a instanceof CustomStatus ||
+        a?.type === ActivityTypes.CUSTOM ||
+        a?.type === 'CUSTOM' ||
+        a?.type === ActivityTypes[ActivityTypes.CUSTOM],
+    );
+
+    if (custom) {
+      const restPayload = {
+        text: custom.state ?? null,
+        emoji_name: custom.emoji?.name ?? null,
+        emoji_id: custom.emoji?.id ?? null,
+        expires_at: custom.expiresAt ?? custom.expires_at ?? null,
+      };
+
+      await this.client.api.users('@me').settings.patch({ data: { custom_status: restPayload } }).catch(err => {
+        this.client.emit('warn', `[setPresence] REST custom_status patch failed: ${err?.message ?? err}`);
+      });
+    }
+
+    return presence;
   }
 
   /**
@@ -222,10 +253,10 @@ class ClientUser extends User {
    * Sets the status of the client user.
    * @param {PresenceStatusData} status Status to change to
    * @param {number|number[]} [shardId] Shard id(s) to have the activity set on
-   * @returns {ClientPresence}
+   * @returns {Promise<ClientPresence>}
    * @example
    * // Set the client user's status
-   * client.user.setStatus('idle');
+   * await client.user.setStatus('idle');
    */
   setStatus(status, shardId) {
     return this.setPresence({ status, shardId });
@@ -244,10 +275,10 @@ class ClientUser extends User {
    * Sets the activity the client user is playing.
    * @param {string|ActivityOptions} name Activity being played, or options for setting the activity
    * @param {ActivityOptions} [options] Options for setting the activity
-   * @returns {ClientPresence}
+   * @returns {Promise<ClientPresence>}
    * @example
    * // Set the client user's activity
-   * client.user.setActivity('discord.js', { type: 'WATCHING' });
+   * await client.user.setActivity('discord.js', { type: 'WATCHING' });
    * @see {@link https://github.com/aiko-chan-ai/djs-selfbot-v13/blob/main/Document/RichPresence.md}
    */
   setActivity(name, options = {}) {
@@ -261,72 +292,10 @@ class ClientUser extends User {
    * Sets/removes the AFK flag for the client user.
    * @param {boolean} [afk=true] Whether or not the user is AFK
    * @param {number|number[]} [shardId] Shard Id(s) to have the AFK flag set on
-   * @returns {ClientPresence}
+   * @returns {Promise<ClientPresence>}
    */
   setAFK(afk = true, shardId) {
     return this.setPresence({ afk, shardId });
-  }
-
-  /**
-   * Sets the custom status of the client user.
-   * Updates both the Gateway (local real-time display) and the REST API (account persistence).
-   * @param {CustomStatus|CustomStatusOptions|string|null} options
-   *   A `CustomStatus` instance, an options object, a plain string for the state, or `null` to clear.
-   * @param {string} [options.state] Text displayed as the status
-   * @param {EmojiIdentifierResolvable} [options.emoji] Emoji shown next to the text
-   * @param {string} [options.expiresAt] ISO8601 date at which Discord auto-clears the status
-   * @param {number|number[]} [options.shardId] Shard(s) to broadcast the Gateway update on
-   * @returns {Promise<ClientPresence>}
-   * @example
-   * // With text + unicode emoji
-   * await client.user.setCustomStatus({ state: 'Coding...', emoji: '💻' });
-   * @example
-   * // Plain string shorthand
-   * await client.user.setCustomStatus('Taking a break');
-   * @example
-   * // Clear the custom status
-   * await client.user.setCustomStatus(null);
-   */
-  async setCustomStatus(options, shardId) {
-    const { CustomStatus } = require('../structures/Presence');
-
-    // ── 1. Normalise l'entrée ─────────────────────────────────────────────
-    let activity = null; // null = effacer
-    let restPayload = null;
-
-    if (options !== null && options !== undefined) {
-      if (typeof options === 'string') options = { state: options };
-
-      // Supporte un objet CustomStatus existant (déjà construit par l'utilisateur)
-      const cs = options instanceof CustomStatus
-        ? options
-        : new CustomStatus(this.client, {
-          state: options.state ?? null,
-          emoji: options.emoji ? { name: options.emoji } : undefined,
-        });
-
-      activity = cs.toJSON(); // { name, type, state, emoji }
-
-      restPayload = {
-        text: cs.state ?? null,
-        emoji_name: cs.emoji?.name ?? null,
-        emoji_id: cs.emoji?.id ?? null,
-        expires_at: options.expiresAt ?? null,
-      };
-    }
-
-    // ── 2. Gateway — visible localement en temps réel ────────────────────
-    const presenceActivities = activity ? [activity] : [];
-    const presence = this.setPresence({ activities: presenceActivities, shardId });
-
-    // ── 3. REST — persistance sur le compte Discord ───────────────────────
-    await this.client.api.users('@me').settings.patch({ data: { custom_status: restPayload } })
-      .catch(err => {
-        // Non bloquant : on ne veut pas casser setPresence si l'endpoint échoue
-        this.client.emit('warn', `[setCustomStatus] REST patch failed: ${err?.message ?? err}`);
-      });
-
-    return presence;
   }
 
   /**
