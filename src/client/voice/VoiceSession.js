@@ -46,7 +46,7 @@ function normalizeData(data = {}) {
 
 /**
  * Builds a Discord stream key for a voice channel.
- * @param {import('../../structures/Channel')} channel Voice channel
+ * @param {Channel} channel Voice channel
  * @param {string} userId User id
  * @returns {string}
  */
@@ -59,10 +59,10 @@ function getStreamKey(channel, userId) {
 
 /**
  * Waits for the client's voice state to match a predicate.
- * @param {import('../Client')} client Discord client
- * @param {(voiceState: import('../../structures/VoiceState')) => boolean} predicate Predicate
+ * @param {Client} client Discord client
+ * @param {Function} predicate Predicate
  * @param {number} [timeout=10_000] Timeout in milliseconds
- * @returns {Promise<import('../../structures/VoiceState')>}
+ * @returns {Promise<VoiceState>}
  */
 function waitForSelfVoiceState(client, predicate, timeout = 10_000) {
   return new Promise((resolve, reject) => {
@@ -94,8 +94,8 @@ function waitForSelfVoiceState(client, predicate, timeout = 10_000) {
  */
 class VoiceSession {
   /**
-   * @param {import('./ClientVoiceManager')} voiceManager Voice manager
-   * @param {import('../../structures/Channel')} channel Voice channel
+   * @param {ClientVoiceManager} voiceManager Voice manager
+   * @param {Channel} channel Voice channel
    * @param {JoinVoiceData} [data={}] Initial options
    */
   constructor(voiceManager, channel, data = {}) {
@@ -118,9 +118,9 @@ class VoiceSession {
     this._audioBitrate = normalized.audioBitrate;
     this._audio = normalized.audio;
 
-    /** @type {import('./VoiceConnection')|null} */
+    /** @type {?VoiceConnection} */
     this.connection = null;
-    /** @type {import('./VoiceConnection').StreamConnection|null} */
+    /** @type {?StreamConnection} */
     this.streamConnection = null;
 
     this._streamVideoDispatcher = null;

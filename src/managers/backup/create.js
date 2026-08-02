@@ -9,7 +9,7 @@ const {
 
 /**
  * Returns banned members of the guild
- * @param {import('../../structures/Guild').Guild} guild
+ * @param {Guild} guild
  * @returns {Promise<Object[]>}
  */
 async function getBans(guild) {
@@ -28,7 +28,7 @@ async function getBans(guild) {
 
 /**
  * Returns members of the guild
- * @param {import('../../structures/Guild').Guild} guild
+ * @param {Guild} guild
  * @returns {Promise<Object[]>}
  */
 async function getMembers(guild) {
@@ -51,7 +51,7 @@ async function getMembers(guild) {
 
 /**
  * Returns roles of the guild
- * @param {import('../../structures/Guild').Guild} guild
+ * @param {Guild} guild
  * @returns {Promise<Object[]>}
  */
 async function getRoles(guild) {
@@ -78,7 +78,7 @@ async function getRoles(guild) {
 
 /**
  * Returns emojis of the guild
- * @param {import('../../structures/Guild').Guild} guild
+ * @param {Guild} guild
  * @param {Object} options
  * @returns {Promise<Object[]>}
  */
@@ -102,7 +102,7 @@ async function getEmojis(guild, options) {
 
 /**
  * Fetch channel data based on type
- * @param {import('../../structures/GuildChannel')} channel
+ * @param {GuildChannel} channel
  * @param {Object} options
  * @returns {Promise<Object>}
  */
@@ -116,7 +116,7 @@ async function fetchAnyChannelData(channel, options) {
 
 /**
  * Returns channels of the guild
- * @param {import('../../structures/Guild').Guild} guild
+ * @param {Guild} guild
  * @param {Object} options
  * @returns {Promise<Object>}
  */

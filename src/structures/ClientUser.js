@@ -299,6 +299,23 @@ class ClientUser extends User {
   }
 
   /**
+   * Spoofs the client user device (e.g. desktop, mobile, android, iphone, web, ps5, xbox, vr).
+   * @param {string} [device='desktop'] Device profile to spoof
+   * @returns {ClientUser}
+   * @example
+   * client.user.spoofDevice('mobile');
+   */
+  spoofDevice(device = 'desktop') {
+    const ClientProperties = require('../util/ClientProperties');
+    this.client.options.device = device;
+    ClientProperties.applyToClientOptions(this.client.options);
+    if (this.client.presence) {
+      this.client.presence.set({});
+    }
+    return this;
+  }
+
+  /**
    * Sets the banner of the logged in client.
    * @param {?(BufferResolvable|Base64Resolvable)} banner The new banner
    * @returns {Promise<ClientUser>}

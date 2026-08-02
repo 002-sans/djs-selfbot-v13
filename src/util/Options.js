@@ -170,9 +170,9 @@ class Options extends null {
    * @returns {ClientOptions}
    */
   static createDefault() {
-    ClientProperties.ensureFetched();
-
     return {
+      device: 'desktop',
+      getLastProperties: false,
       DMChannelVoiceStatusSync: 0,
       captchaRetryLimit: 3,
       captchaSolver: () => {

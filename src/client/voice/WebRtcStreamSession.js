@@ -74,8 +74,8 @@ class WebRtcStreamSession extends EventEmitter {
   static resolveUrl = StreamSession.resolveUrl;
 
   /**
-   * @param {import('../Client')} client
-   * @param {import('./StreamSession').StartStreamOptions} options
+   * @param {Client} client
+   * @param {StartStreamOptions} options
    */
   constructor(client, options) {
     super();

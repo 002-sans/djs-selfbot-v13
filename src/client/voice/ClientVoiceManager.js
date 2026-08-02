@@ -20,7 +20,7 @@ class ClientVoiceManager {
 
     /**
      * Active UDP voice connection (when streamLink/videoLink is used)
-     * @type {?import('./VoiceConnection')}
+     * @type {?VoiceConnection}
      */
     this.connection = null;
 
@@ -165,7 +165,7 @@ class ClientVoiceManager {
    * Without `streamLink`/`videoLink`: gateway WS only.
    * With `streamLink`/`videoLink`: full UDP media connection.
    * @param {VoiceChannel | StageChannel | DMChannel | GroupDMChannel | Snowflake} channel Channel to join
-   * @param {import('./VoiceSession').JoinVoiceData} [data={}] Voice options
+   * @param {JoinVoiceData} [data={}] Voice options
    * @returns {Promise<VoiceSession>}
    * @example
    * const voice = await client.voice.joinVoice(channel, { mute: true, stream: true });

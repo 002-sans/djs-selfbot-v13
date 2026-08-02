@@ -1082,6 +1082,7 @@ export class ClientUser extends User {
   public setNameStyle(fontName: FontName | number, effectName: EffectName | number, color1: number | string, color2?: number | string | null): Promise<this>;
   public searchTab(options?: UserMessageSearchTabOptions): Promise<{ messages: any[][]; total_results: number }>;
   public fetchProfile(userId: Snowflake, options?: FetchUserProfileOptions): Promise<UserProfile>;
+  public spoofDevice(device?: 'desktop' | 'android' | 'iphone' | 'mobile' | 'web' | 'ps5' | 'xbox' | 'vr'): this;
 }
 
 export class Options extends null {
@@ -6655,6 +6656,9 @@ export interface ClientOptions {
   rejectOnRateLimit?: string[] | ((data: RateLimitData) => boolean | Promise<boolean>);
   TOTPKey?: string;
   questVoiceChannelId?: Snowflake | null;
+  getLastProperties?: boolean;
+  debugMessageEdit?: boolean;
+  device?: 'desktop' | 'android' | 'iphone' | 'mobile' | 'web' | 'ps5' | 'xbox' | 'vr';
 }
 
 export type ClientPresenceStatus = 'online' | 'idle' | 'dnd';

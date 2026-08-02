@@ -7,7 +7,7 @@ const { clearGuild, fetchBuffer } = require('./util');
 
 /**
  * Creates a guild backup
- * @param {import('../../structures/Guild').Guild} guild
+ * @param {Guild} guild
  * @param {Object} [options] Backup options
  * @returns {Promise<Object>}
  */
@@ -97,7 +97,7 @@ async function create(guild, options = {}) {
 /**
  * Loads a backup into a guild
  * @param {Object} backupData
- * @param {import('../../structures/Guild').Guild} guild
+ * @param {Guild} guild
  * @param {Object} [options] Load options
  * @returns {Promise<Object>}
  */

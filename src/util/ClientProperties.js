@@ -178,6 +178,18 @@ async function awaitLatest(releaseChannel = 'stable') {
   }
 }
 
+const SPOOF_DEVICES = {
+  web: { os: 'Other', browser: 'Discord Web' },
+  mobile: { os: 'Android', browser: 'Discord Android' },
+  android: { os: 'Android', browser: 'Discord Android' },
+  iphone: { os: 'iOS', browser: 'Discord iOS' },
+  ios: { os: 'iOS', browser: 'Discord iOS' },
+  desktop: { os: 'Linux', browser: 'Discord Client' },
+  ps5: { os: 'Windows', browser: 'Discord Embedded', device: 'Discord Embedded' },
+  xbox: { os: 'Windows', browser: 'Discord Embedded', device: 'Discord Embedded' },
+  vr: { os: 'Android', browser: 'Discord VR', device: 'Discord VR' },
+};
+
 function applyToClientOptions(options) {
   const releaseChannel = options.ws?.properties?.release_channel ?? 'stable';
 
@@ -187,6 +199,13 @@ function applyToClientOptions(options) {
     options.ws.properties.client_launch_id = randomUUID();
     options.ws.properties.launch_signature = randomUUID();
     options.ws.properties.client_heartbeat_session_id = randomUUID();
+
+    const deviceKey = typeof options.device === 'string' ? options.device.toLowerCase() : 'desktop';
+    const info = SPOOF_DEVICES[deviceKey] ?? SPOOF_DEVICES.desktop;
+
+    options.ws.properties.os = info.os;
+    options.ws.properties.browser = info.browser;
+    options.ws.properties.device = info.device ?? info.browser;
   }
 
   const clientVersion = options.ws?.properties?.client_version ?? FALLBACK_WS_PROPERTIES.client_version;

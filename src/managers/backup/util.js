@@ -20,7 +20,7 @@ async function fetchBuffer(url) {
 
 /**
  * Gets the permissions for a channel
- * @param {import('../../structures/GuildChannel')} channel
+ * @param {GuildChannel} channel
  * @returns {Object[]}
  */
 function fetchChannelPermissions(channel) {
@@ -44,7 +44,7 @@ function fetchChannelPermissions(channel) {
 
 /**
  * Fetches voice channel data for backup
- * @param {import('../../structures/GuildChannel')} channel
+ * @param {GuildChannel} channel
  * @returns {Promise<Object>}
  */
 async function fetchVoiceChannelData(channel) {
@@ -60,7 +60,7 @@ async function fetchVoiceChannelData(channel) {
 
 /**
  * Fetches messages from a channel
- * @param {import('../../structures/interfaces/TextBasedChannel')} channel
+ * @param {TextBasedChannel} channel
  * @param {Object} options
  * @returns {Promise<Object[]>}
  */
@@ -118,7 +118,7 @@ async function fetchChannelMessages(channel, options) {
 
 /**
  * Fetches text channel data for backup
- * @param {import('../../structures/GuildChannel')} channel
+ * @param {GuildChannel} channel
  * @param {Object} options
  * @returns {Promise<Object>}
  */
@@ -174,8 +174,8 @@ async function fetchTextChannelData(channel, options) {
 /**
  * Creates a category for the guild
  * @param {Object} categoryData
- * @param {import('../../structures/Guild').Guild} guild
- * @returns {Promise<import('../../structures/GuildChannel')>}
+ * @param {Guild} guild
+ * @returns {Promise<GuildChannel>}
  */
 async function loadCategory(categoryData, guild) {
   const category = await guild.channels.create(categoryData.name, { type: 'GUILD_CATEGORY' });
@@ -199,10 +199,10 @@ async function loadCategory(categoryData, guild) {
 /**
  * Create a channel and returns it
  * @param {Object} channelData
- * @param {import('../../structures/Guild').Guild} guild
- * @param {import('../../structures/GuildChannel')|null} category
+ * @param {Guild} guild
+ * @param {GuildChannel|null} category
  * @param {Object} options
- * @returns {Promise<import('../../structures/GuildChannel')|undefined>}
+ * @returns {Promise<GuildChannel|undefined>}
  */
 async function loadChannel(channelData, guild, category, options) {
   const loadMessages = async (channel, messages, previousWebhook) => {
@@ -334,7 +334,7 @@ async function loadChannel(channelData, guild, category, options) {
 
 /**
  * Delete all roles, channels, emojis, etc. of a guild
- * @param {import('../../structures/Guild').Guild} guild
+ * @param {Guild} guild
  * @returns {Promise<void>}
  */
 async function clearGuild(guild) {

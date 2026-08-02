@@ -305,7 +305,9 @@ class Client extends BaseClient {
 
     this.emit(Events.DEBUG, 'Preparing to connect to the gateway...');
 
-    await ClientProperties.awaitLatest(this.options.ws?.properties?.release_channel);
+    if (this.options.getLastProperties) {
+      await ClientProperties.awaitLatest(this.options.ws?.properties?.release_channel);
+    }
     ClientProperties.applyToClientOptions(this.options);
 
     try {

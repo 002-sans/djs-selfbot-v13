@@ -11,6 +11,9 @@ module.exports = (client, { d: data }, shard) => {
 
   // Overwrite ClientPresence
   client.presence.userId = data.user.id;
+  if (client.options.presence) {
+    client.presence.set(client.options.presence);
+  }
 
   if (client.user) {
     client.user._patch(data.user);

@@ -30,7 +30,8 @@ class Quest {
 
   /**
    * Raw quest data from the API
-   * @returns {Object}
+   * @type {Object}
+   * @readonly
    */
   get raw() {
     return this._raw;

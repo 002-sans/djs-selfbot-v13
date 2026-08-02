@@ -5,6 +5,7 @@ const CachedManager = require('./CachedManager');
 const { TypeError } = require('../errors');
 const { Message } = require('../structures/Message');
 const MessagePayload = require('../structures/MessagePayload');
+const Permissions = require('../util/Permissions');
 const Util = require('../util/Util');
 
 /**
@@ -23,97 +24,64 @@ class MessageManager extends CachedManager {
   }
 
   /**
-   * The cache of Messages
-   * @type {Collection<Snowflake, Message>}
-   * @name MessageManager#cache
+   * Format message edit debug block
+   * @param {MessageResolvable} message The message to format debug for
+   * @param {Error|null} [error=null] Error if any
+   * @returns {string}
+   * @private
    */
+  _formatMessageEditDebug(message, error = null) {
+    const messageId = this.resolveId(message);
+    const targetMessage = message instanceof Message ? message : this.cache.get(messageId);
 
-  _add(data, cache) {
-    return super._add(data, cache);
+    const guildId = this.channel.guild?.id ?? 'DM/None';
+    const channelId = this.channel.id;
+    const messageAuthorId = targetMessage?.author?.id ?? 'Unknown (Not cached)';
+    const botUserId = this.client.user?.id ?? 'Unknown';
+    const channelType = this.channel.type ?? 'Unknown';
+
+    const permissions = this.channel.guild ? this.channel.permissionsFor?.(this.client.user) : null;
+    const viewChannel = permissions ? permissions.has(Permissions.FLAGS.VIEW_CHANNEL, false) : true;
+    const sendMessages = permissions
+      ? this.channel.isThread?.()
+        ? permissions.has(Permissions.FLAGS.SEND_MESSAGES_IN_THREADS, false)
+        : permissions.has(Permissions.FLAGS.SEND_MESSAGES, false)
+      : true;
+    const readMessageHistory = permissions ? permissions.has(Permissions.FLAGS.READ_MESSAGE_HISTORY, false) : true;
+    const manageMessages = permissions ? permissions.has(Permissions.FLAGS.MANAGE_MESSAGES, false) : false;
+
+    const messageEditable = targetMessage
+      ? targetMessage.editable
+      : messageAuthorId === botUserId || messageAuthorId === 'Unknown (Not cached)';
+    const messageWebhook = targetMessage ? Boolean(targetMessage.webhookId) : false;
+    const messageCached = Boolean(targetMessage);
+
+    const errorMsg = error ? (error.message || String(error)) : 'None';
+    const timestamp = new Date().toISOString();
+
+    return `[MESSAGE EDIT DEBUG]
+
+Guild ID: ${guildId}
+Channel ID: ${channelId}
+Message ID: ${messageId}
+Message Author: ${messageAuthorId}
+Bot User ID: ${botUserId}
+
+Channel Type: ${channelType}
+
+Permissions:
+VIEW_CHANNEL: ${viewChannel}
+SEND_MESSAGES: ${sendMessages}
+READ_MESSAGE_HISTORY: ${readMessageHistory}
+MANAGE_MESSAGES: ${manageMessages}
+
+Message Editable: ${messageEditable}
+Message Webhook: ${messageWebhook}
+Message Cached: ${messageCached}
+
+Error: ${errorMsg}
+Timestamp: ${timestamp}`;
   }
-
-  /**
-   * The parameters to pass in when requesting previous messages from a channel. `around`, `before` and
-   * `after` are mutually exclusive. All the parameters are optional.
-   * @typedef {Object} ChannelLogsQueryOptions
-   * @property {number} [limit=50] Number of messages to acquire
-   * @property {Snowflake} [before] The message's id to get the messages that were posted before it
-   * @property {Snowflake} [after] The message's id to get the messages that were posted after it
-   * @property {Snowflake} [around] The message's id to get the messages that were posted around it
-   */
-
-  /**
-   * Gets a message, or messages, from this channel.
-   * <info>The returned Collection does not contain reaction users of the messages if they were not cached.
-   * Those need to be fetched separately in such a case.</info>
-   * @param {Snowflake|ChannelLogsQueryOptions} [message] The id of the message to fetch, or query parameters.
-   * @param {BaseFetchOptions} [options] Additional options for this fetch
-   * @returns {Promise<Message|Collection<Snowflake, Message>>}
-   * @example
-   * // Get message
-   * channel.messages.fetch('99539446449315840')
-   *   .then(message => console.log(message.content))
-   *   .catch(console.error);
-   * @example
-   * // Get messages
-   * channel.messages.fetch({ limit: 10 })
-   *   .then(messages => console.log(`Received ${messages.size} messages`))
-   *   .catch(console.error);
-   * @example
-   * // Get messages and filter by user id
-   * channel.messages.fetch()
-   *   .then(messages => console.log(`${messages.filter(m => m.author.id === '84484653687267328').size} messages`))
-   *   .catch(console.error);
-   */
-  fetch(message, { cache = true, force = false } = {}) {
-    return typeof message === 'string' ? this._fetchId(message, cache, force) : this._fetchMany(message, cache);
-  }
-
-  /**
-   * Fetches the pinned messages of this channel and returns a collection of them.
-   * <info>The returned Collection does not contain any reaction data of the messages.
-   * Those need to be fetched separately.</info>
-   * @param {boolean} [cache=true] Whether to cache the message(s)
-   * @returns {Promise<Collection<Snowflake, Message>>}
-   * @example
-   * // Get pinned messages
-   * channel.messages.fetchPinned()
-   *   .then(messages => console.log(`Received ${messages.size} messages`))
-   *   .catch(console.error);
-   */
-  async fetchPinned(cache = true) {
-    const data = await this.client.api.channels[this.channel.id].messages.pins.get({
-      query: { limit: 50 },
-    });
-    const messages = new Collection();
-    for (const message of data?.items || []) messages.set(message.id, this._add(message, cache));
-    return messages;
-  }
-
-  /**
-   * Data that can be resolved to a Message object. This can be:
-   * * A Message
-   * * A Snowflake
-   * @typedef {Message|Snowflake} MessageResolvable
-   */
-
-  /**
-   * Resolves a {@link MessageResolvable} to a {@link Message} object.
-   * @method resolve
-   * @memberof MessageManager
-   * @instance
-   * @param {MessageResolvable} message The message resolvable to resolve
-   * @returns {?Message}
-   */
-
-  /**
-   * Resolves a {@link MessageResolvable} to a {@link Message} id.
-   * @method resolveId
-   * @memberof MessageManager
-   * @instance
-   * @param {MessageResolvable} message The message resolvable to resolve
-   * @returns {?Snowflake}
-   */
 
   /**
    * Edits a message, even if it's not cached.
@@ -125,40 +93,181 @@ class MessageManager extends CachedManager {
     const messageId = this.resolveId(message);
     if (!messageId) throw new TypeError('INVALID_TYPE', 'message', 'MessageResolvable');
 
-    const { data, files } = await (options instanceof MessagePayload
-      ? options
-      : MessagePayload.create(message instanceof Message ? message : this, options)
-    )
-      .resolveData()
-      .resolveFiles();
-
-    // New API
-    const attachments = await Util.getUploadURL(this.client, this.channel.id, files);
-    const requestPromises = attachments.map(async attachment => {
-      await Util.uploadFile(files[attachment.id].file, attachment.upload_url);
-      return {
-        id: attachment.id,
-        filename: files[attachment.id].name,
-        uploaded_filename: attachment.upload_filename,
-        description: files[attachment.id].description,
-        duration_secs: files[attachment.id].duration_secs,
-        waveform: files[attachment.id].waveform,
-      };
-    });
-    const attachmentsData = await Promise.all(requestPromises);
-    attachmentsData.sort((a, b) => parseInt(a.id) - parseInt(b.id));
-    data.attachments = attachmentsData;
-    // Empty Files
-
-    const d = await this.client.api.channels[this.channel.id].messages[messageId].patch({ data });
-
-    const existing = this.cache.get(messageId);
-    if (existing) {
-      const clone = existing._clone();
-      clone._patch(d);
-      return clone;
+    if (!this._editQueues) this._editQueues = new Map();
+    let queue = this._editQueues.get(messageId);
+    if (!queue) {
+      queue = Promise.resolve();
+      this._editQueues.set(messageId, queue);
     }
-    return this._add(d);
+
+    const performEdit = async () => {
+      const targetMessage = message instanceof Message ? message : this.cache.get(messageId);
+      const botUserId = this.client.user?.id;
+
+      // 1. Ownership check (only original author can edit message content)
+      if (targetMessage && targetMessage.author && botUserId && targetMessage.author.id !== botUserId) {
+        const err = new Error(
+          `[MESSAGE_EDIT_FAILED] Cannot edit message: Message was authored by user "${targetMessage.author.id}", but client is logged in as "${botUserId}". Only the original author can edit message content.`,
+        );
+        const debugInfo = this._formatMessageEditDebug(message, err);
+        this.client.emit('debug', debugInfo);
+        if (this.client.options?.debugMessageEdit || process.env.DEBUG_MESSAGE_EDIT) {
+          console.log(debugInfo);
+        }
+        throw err;
+      }
+
+      // 2. Webhook message check
+      if (targetMessage && targetMessage.webhookId) {
+        const err = new Error(
+          `[MESSAGE_EDIT_FAILED] Cannot edit webhook message "${messageId}" via standard channel message edit endpoint.`,
+        );
+        const debugInfo = this._formatMessageEditDebug(message, err);
+        this.client.emit('debug', debugInfo);
+        if (this.client.options?.debugMessageEdit || process.env.DEBUG_MESSAGE_EDIT) {
+          console.log(debugInfo);
+        }
+        throw err;
+      }
+
+      // 3. Channel permission checks
+      if (this.channel.guild) {
+        const permissions = this.channel.permissionsFor(this.client.user);
+        if (permissions) {
+          if (!permissions.has(Permissions.FLAGS.VIEW_CHANNEL, false)) {
+            const err = new Error(
+              `[MESSAGE_EDIT_FAILED] Missing VIEW_CHANNEL permission in channel "${this.channel.id}".`,
+            );
+            const debugInfo = this._formatMessageEditDebug(message, err);
+            this.client.emit('debug', debugInfo);
+            if (this.client.options?.debugMessageEdit || process.env.DEBUG_MESSAGE_EDIT) {
+              console.log(debugInfo);
+            }
+            throw err;
+          }
+
+          const sendPerm = this.channel.isThread?.()
+            ? Permissions.FLAGS.SEND_MESSAGES_IN_THREADS
+            : Permissions.FLAGS.SEND_MESSAGES;
+
+          if (!permissions.has(sendPerm, false)) {
+            const err = new Error(
+              `[MESSAGE_EDIT_FAILED] Missing ${
+                this.channel.isThread?.() ? 'SEND_MESSAGES_IN_THREADS' : 'SEND_MESSAGES'
+              } permission in channel "${this.channel.id}".`,
+            );
+            const debugInfo = this._formatMessageEditDebug(message, err);
+            this.client.emit('debug', debugInfo);
+            if (this.client.options?.debugMessageEdit || process.env.DEBUG_MESSAGE_EDIT) {
+              console.log(debugInfo);
+            }
+            throw err;
+          }
+
+          if (!permissions.has(Permissions.FLAGS.READ_MESSAGE_HISTORY, false)) {
+            const err = new Error(
+              `[MESSAGE_EDIT_FAILED] Missing READ_MESSAGE_HISTORY permission in channel "${this.channel.id}".`,
+            );
+            const debugInfo = this._formatMessageEditDebug(message, err);
+            this.client.emit('debug', debugInfo);
+            if (this.client.options?.debugMessageEdit || process.env.DEBUG_MESSAGE_EDIT) {
+              console.log(debugInfo);
+            }
+            throw err;
+          }
+        }
+      }
+
+      // 4. Thread state checks (Archived / Locked)
+      if (this.channel.isThread?.()) {
+        if (this.channel.archived) {
+          const err = new Error(
+            `[MESSAGE_EDIT_FAILED] Cannot edit message in archived thread "${this.channel.id}".`,
+          );
+          const debugInfo = this._formatMessageEditDebug(message, err);
+          this.client.emit('debug', debugInfo);
+          if (this.client.options?.debugMessageEdit || process.env.DEBUG_MESSAGE_EDIT) {
+            console.log(debugInfo);
+          }
+          throw err;
+        }
+
+        if (this.channel.locked) {
+          const permissions = this.channel.permissionsFor(this.client.user);
+          if (!permissions?.has(Permissions.FLAGS.MANAGE_THREADS, true)) {
+            const err = new Error(
+              `[MESSAGE_EDIT_FAILED] Cannot edit message in locked thread "${this.channel.id}" without MANAGE_THREADS permission.`,
+            );
+            const debugInfo = this._formatMessageEditDebug(message, err);
+            this.client.emit('debug', debugInfo);
+            if (this.client.options?.debugMessageEdit || process.env.DEBUG_MESSAGE_EDIT) {
+              console.log(debugInfo);
+            }
+            throw err;
+          }
+        }
+      }
+
+      // Format & emit debug before sending request
+      const debugInfo = this._formatMessageEditDebug(message);
+      this.client.emit('debug', debugInfo);
+      if (this.client.options?.debugMessageEdit || process.env.DEBUG_MESSAGE_EDIT) {
+        console.log(debugInfo);
+      }
+
+      const { data, files } = await (options instanceof MessagePayload
+        ? options
+        : MessagePayload.create(message instanceof Message ? message : this, options)
+      )
+        .resolveData()
+        .resolveFiles();
+
+      const attachments = await Util.getUploadURL(this.client, this.channel.id, files);
+      const requestPromises = attachments.map(async attachment => {
+        await Util.uploadFile(files[attachment.id].file, attachment.upload_url);
+        return {
+          id: attachment.id,
+          filename: files[attachment.id].name,
+          uploaded_filename: attachment.upload_filename,
+          description: files[attachment.id].description,
+          duration_secs: files[attachment.id].duration_secs,
+          waveform: files[attachment.id].waveform,
+        };
+      });
+      const attachmentsData = await Promise.all(requestPromises);
+      attachmentsData.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+      data.attachments = attachmentsData;
+
+      try {
+        const d = await this.client.api.channels[this.channel.id].messages[messageId].patch({ data });
+
+        const existing = this.cache.get(messageId);
+        if (existing) {
+          const clone = existing._clone();
+          clone._patch(d);
+          return clone;
+        }
+        return this._add(d);
+      } catch (apiError) {
+        const errDebug = this._formatMessageEditDebug(message, apiError);
+        this.client.emit('debug', errDebug);
+        if (this.client.options?.debugMessageEdit || process.env.DEBUG_MESSAGE_EDIT) {
+          console.log(errDebug);
+        }
+        throw apiError;
+      }
+    };
+
+    const nextPromise = queue.then(performEdit, performEdit);
+    this._editQueues.set(messageId, nextPromise);
+
+    try {
+      return await nextPromise;
+    } finally {
+      if (this._editQueues.get(messageId) === nextPromise) {
+        this._editQueues.delete(messageId);
+      }
+    }
   }
 
   /**
