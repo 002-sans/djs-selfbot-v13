@@ -21,7 +21,7 @@ const StageChannel = require('../../structures/StageChannel');
  * @property {boolean} [audio=true] Play audio with stream/video links
  */
 
-/**
+/*
  * Normalizes joinVoice data.
  * @param {JoinVoiceData} [data={}] Options
  * @returns {object}
@@ -44,7 +44,7 @@ function normalizeData(data = {}) {
   };
 }
 
-/**
+/*
  * Builds a Discord stream key for a voice channel.
  * @param {Channel} channel Voice channel
  * @param {string} userId User id
@@ -57,7 +57,7 @@ function getStreamKey(channel, userId) {
   return `guild:${channel.guild.id}:${channel.id}:${userId}`;
 }
 
-/**
+/*
  * Waits for the client's voice state to match a predicate.
  * @param {Client} client Discord client
  * @param {Function} predicate Predicate

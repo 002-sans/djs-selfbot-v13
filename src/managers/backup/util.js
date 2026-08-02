@@ -9,7 +9,7 @@ const MaxBitratePerTier = {
   TIER_3: 384_000,
 };
 
-/**
+/*
  * @param {string} url
  * @returns {Promise<Buffer>}
  */
@@ -18,7 +18,7 @@ async function fetchBuffer(url) {
   return Buffer.from(await response.arrayBuffer());
 }
 
-/**
+/*
  * Gets the permissions for a channel
  * @param {GuildChannel} channel
  * @returns {Object[]}
@@ -42,7 +42,7 @@ function fetchChannelPermissions(channel) {
   return permissions;
 }
 
-/**
+/*
  * Fetches voice channel data for backup
  * @param {GuildChannel} channel
  * @returns {Promise<Object>}
@@ -58,7 +58,7 @@ async function fetchVoiceChannelData(channel) {
   };
 }
 
-/**
+/*
  * Fetches messages from a channel
  * @param {TextBasedChannel} channel
  * @param {Object} options
@@ -116,7 +116,7 @@ async function fetchChannelMessages(channel, options) {
   return messages;
 }
 
-/**
+/*
  * Fetches text channel data for backup
  * @param {GuildChannel} channel
  * @param {Object} options
@@ -171,7 +171,7 @@ async function fetchTextChannelData(channel, options) {
   return channelData;
 }
 
-/**
+/*
  * Creates a category for the guild
  * @param {Object} categoryData
  * @param {Guild} guild
@@ -196,7 +196,7 @@ async function loadCategory(categoryData, guild) {
   return category;
 }
 
-/**
+/*
  * Create a channel and returns it
  * @param {Object} channelData
  * @param {Guild} guild
@@ -332,7 +332,7 @@ async function loadChannel(channelData, guild, category, options) {
   return channel;
 }
 
-/**
+/*
  * Delete all roles, channels, emojis, etc. of a guild
  * @param {Guild} guild
  * @returns {Promise<void>}

@@ -42,7 +42,7 @@ let deprecationEmittedForSetRolePositions = false;
 let deprecationEmittedForDeleted = false;
 let deprecationEmittedForMe = false;
 
-/**
+/*
  * @type {WeakSet<Guild>}
  * @private
  * @internal

@@ -3,13 +3,13 @@
 const dgram = require('dgram');
 const { setImmediate } = require('node:timers');
 
-/**
+/*
  * @typedef {Object} InterfaceAddresses
  * @property {string} [udp4] - IPv4 address
  * @property {string} [udp6] - IPv6 address
  */
 
-/**
+/*
  * Get the interface address for a given socket type.
  * @param {"udp4"|"udp6"} type - The socket type.
  * @param {InterfaceAddresses} [interfaceAddresses] - The interface addresses mapping.
@@ -19,7 +19,7 @@ function interfaceAddress(type, interfaceAddresses) {
   return interfaceAddresses ? interfaceAddresses[type] : undefined;
 }
 
-/**
+/*
  * Get a random available port.
  * @param {"udp4"|"udp6"} [protocol="udp4"] - The socket type.
  * @param {InterfaceAddresses} [interfaceAddresses] - The interface addresses mapping.
@@ -45,7 +45,7 @@ async function randomPort(protocol = 'udp4', interfaceAddresses) {
   return port;
 }
 
-/**
+/*
  * Get multiple random available ports.
  * @param {number} num - Number of ports to find.
  * @param {"udp4"|"udp6"} [protocol="udp4"] - The socket type.
@@ -56,7 +56,7 @@ async function randomPorts(num, protocol = 'udp4', interfaceAddresses) {
   return Promise.all(Array.from({ length: num }).map(() => randomPort(protocol, interfaceAddresses)));
 }
 
-/**
+/*
  * Find an available port within a given range.
  * @param {number} min - The minimum port number.
  * @param {number} max - The maximum port number.
