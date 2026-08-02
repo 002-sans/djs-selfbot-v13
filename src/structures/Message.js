@@ -606,32 +606,35 @@ class Message extends Base {
    * @readonly
    */
   get editable() {
-    const permissions = this.channel?.permissionsFor(this.client.user);
+    if (deletedMessages.has(this)) return false;
+    if (this.webhookId) return false;
+    if (this.author?.id !== this.client.user?.id) return false;
+    if (this.reference?.type === 'FORWARD') return false;
+
+    // DM / Group DM channels
+    if (!this.guild) {
+      return Boolean(this.channel && !this.channel.partial);
+    }
+
+    if (!this.channel?.viewable) return false;
+
+    const permissions = this.channel.permissionsFor(this.client.user);
     if (!permissions) return false;
 
-    const hasPermission = this.channel?.isThread?.()
+    const hasViewChannel = permissions.has(Permissions.FLAGS.VIEW_CHANNEL, false);
+    const hasReadHistory = permissions.has(Permissions.FLAGS.READ_MESSAGE_HISTORY, false);
+    const hasSendMessages = this.channel.isThread?.()
       ? permissions.has(Permissions.FLAGS.SEND_MESSAGES_IN_THREADS, false)
       : permissions.has(Permissions.FLAGS.SEND_MESSAGES, false);
 
-    if (!hasPermission) return false;
+    if (!hasViewChannel || !hasReadHistory || !hasSendMessages) return false;
 
-    const precheck = Boolean(
-      this.author.id === this.client.user.id &&
-        !deletedMessages.has(this) &&
-        (!this.guild || this.channel?.viewable) &&
-        this.reference?.type !== 'FORWARD',
-    );
-
-    // Regardless of permissions thread messages cannot be edited if
-    // the thread is archived or the thread is locked and the bot does not have permission to manage threads.
-    if (this.channel?.isThread()) {
+    if (this.channel.isThread?.()) {
       if (this.channel.archived) return false;
-      if (this.channel.locked) {
-        if (!permissions?.has(Permissions.FLAGS.MANAGE_THREADS, true)) return false;
-      }
+      if (this.channel.locked && !permissions.has(Permissions.FLAGS.MANAGE_THREADS, true)) return false;
     }
 
-    return precheck;
+    return true;
   }
 
   /**

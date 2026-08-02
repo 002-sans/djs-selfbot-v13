@@ -718,6 +718,7 @@ class WebSocketShard extends EventEmitter {
         is_fast_connect: false,
         gateway_connect_reasons: 'AppSkeleton',
       },
+      presence: client.presence ? client.presence._parse(client.options.presence) : undefined,
       capabilities: client.options.ws.capabilities ?? 30717,
       client_state: client.options.ws.client_state ?? { guild_versions: {} },
     };

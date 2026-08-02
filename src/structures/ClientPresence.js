@@ -23,8 +23,14 @@ class ClientPresence extends Presence {
   set(presence) {
     const packet = this._parse(presence);
     this._patch(packet);
-    packet.activities = this.activities.map(a => a.toJSON());
-    this.client.ws.broadcast({ op: Opcodes.STATUS_UPDATE, d: packet });
+    packet.activities = this.activities.map(a => (typeof a.toJSON === 'function' ? a.toJSON() : a));
+    if (this.client.ws && typeof this.client.ws.broadcast === 'function') {
+      try {
+        this.client.ws.broadcast({ op: Opcodes.STATUS_UPDATE, d: packet });
+      } catch (err) {
+        // Safe catch if broadcast invoked before WebSocket connection is established
+      }
+    }
     return this;
   }
 

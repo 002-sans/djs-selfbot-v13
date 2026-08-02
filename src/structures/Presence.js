@@ -59,7 +59,7 @@ class Presence extends Base {
    * @readonly
    */
   get user() {
-    return this.client.users.resolve(this.userId);
+    return this.userId ? (this.client.users?.resolve(this.userId) ?? null) : null;
   }
 
   /**
@@ -68,7 +68,7 @@ class Presence extends Base {
    * @readonly
    */
   get member() {
-    return this.guild.members.resolve(this.userId);
+    return this.guild?.members?.resolve(this.userId) ?? null;
   }
 
   _patch(data) {
@@ -88,13 +88,17 @@ class Presence extends Base {
        * @type {CustomStatus[]|RichPresence[]|SpotifyRPC[]|Activity[]}
        */
       this.activities = data.activities.map(activity => {
-        if (this.userId == this.client.user.id) {
+        const isClientUserPresence =
+          this.constructor.name === 'ClientPresence' ||
+          (Boolean(this.client?.user) && this.userId === this.client.user.id);
+
+        if (isClientUserPresence) {
           if ([ActivityTypes.CUSTOM, 'CUSTOM'].includes(activity.type)) {
-            return new CustomStatus(this.client, activity);
+            return new CustomStatus(this, activity);
           } else if (activity.id == 'spotify:1') {
-            return new SpotifyRPC(this.client, activity);
+            return new SpotifyRPC(this, activity);
           } else {
-            return new RichPresence(this.client, activity);
+            return new RichPresence(this, activity);
           }
         } else {
           return new Activity(this, activity);
@@ -188,16 +192,13 @@ class Presence extends Base {
  */
 class Activity {
   constructor(presence, data) {
+    if (presence && !(presence instanceof Presence) && presence.presence instanceof Presence) {
+      presence = presence.presence;
+    }
     if (!(presence instanceof Presence)) {
       throw new Error("Class constructor Activity cannot be invoked without 'presence'");
     }
-    /**
-     * The presence of the Activity
-     * @type {Presence}
-     * @readonly
-     * @name Activity#presence
-     */
-    Object.defineProperty(this, 'presence', { value: presence });
+    Object.defineProperty(this, 'presence', { value: presence, writable: true, configurable: true });
 
     this._patch(data);
   }
@@ -1068,7 +1069,7 @@ class SpotifyRPC extends RichPresence {
       name: 'Spotify',
       type: ActivityTypes.LISTENING,
       party: {
-        id: `spotify:${client.user.id}`,
+        id: `spotify:${client?.user?.id ?? '0'}`,
       },
       id: 'spotify:1',
       flags: 48, // Sync + Play (ActivityFlags)

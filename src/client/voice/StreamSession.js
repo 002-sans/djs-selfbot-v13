@@ -27,9 +27,9 @@ class StreamSession extends EventEmitter {
     return tmpPath;
   }
   /**
-   * @param {import('../Client')} client Discord client
-   * @param {import('./VoiceConnection')} voiceConnection Voice connection
-   * @param {import('./VoiceConnection').StreamConnection} streamConnection Stream connection
+   * @param {Client} client Discord client
+   * @param {VoiceConnection} voiceConnection Voice connection
+   * @param {StreamConnection} streamConnection Stream connection
    * @param {StartStreamOptions} options Stream options
    */
   constructor(client, voiceConnection, streamConnection, options) {
@@ -167,7 +167,7 @@ class StreamSession extends EventEmitter {
 
   /**
    * Resumes playback from the last position.
-   * @returns {import('./dispatcher/VideoDispatcher')}
+   * @returns {VideoDispatcher}
    */
   replay() {
     const seekSec = (this._stopped ? this._positionMs : this._getPositionMs()) / 1000;
