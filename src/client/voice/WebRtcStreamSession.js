@@ -21,7 +21,7 @@ if (typeof globalThis.WebSocket === 'undefined') {
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-/** @type {'amf' | 'nvenc' | 'software' | null} */
+/* @type {'amf' | 'nvenc' | 'software' | null} */
 let _cachedEncoder = null;
 
 function detectHwEncoder() {

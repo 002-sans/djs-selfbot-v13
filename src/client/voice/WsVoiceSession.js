@@ -1,6 +1,6 @@
 'use strict';
 
-/**
+/*
  * @deprecated Use {@link VoiceSession} via `client.voice.joinVoice()`.
  * Kept as a compatibility re-export.
  */

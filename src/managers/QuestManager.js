@@ -1054,7 +1054,7 @@ class QuestManager extends BaseManager {
     this.cache.clear();
   }
 
-  /**
+  /*
    * Make QuestManager iterable
    * @returns {IterableIterator<Quest>}
    */

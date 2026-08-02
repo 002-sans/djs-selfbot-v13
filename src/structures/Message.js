@@ -26,7 +26,7 @@ const Permissions = require('../util/Permissions');
 const SnowflakeUtil = require('../util/SnowflakeUtil');
 const Util = require('../util/Util');
 
-/**
+/*
  * @type {WeakSet<Message>}
  * @private
  * @internal

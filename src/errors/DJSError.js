@@ -5,7 +5,7 @@
 const kCode = Symbol('code');
 const messages = new Map();
 
-/**
+/*
  * Extend an error of some sort into a DiscordjsError.
  * @param {Error} Base Base error to extend
  * @returns {DiscordjsError}
@@ -28,7 +28,7 @@ function makeDiscordjsError(Base) {
   };
 }
 
-/**
+/*
  * Format the message for an error.
  * @param {string} key Error key
  * @param {Array<*>} args Arguments to pass for util format or as function args
@@ -44,7 +44,7 @@ function message(key, args) {
   return String(...args);
 }
 
-/**
+/*
  * Register an error code and message.
  * @param {string} sym Unique name for the error
  * @param {*} val Value of the error
